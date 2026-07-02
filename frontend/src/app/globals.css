@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: #FAFAFA;
+  --color-foreground: #171717;
+  --color-accent-purple: #6D5EF5;
+  --color-accent-purple-light: #8B7CFF;
+  --color-accent-orange: #FF9B5E;
+  --color-accent-coral: #FF7E6B;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  /* Faint noise texture + subtle radial gradients */
+  background-image: 
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E"),
+    radial-gradient(circle at top right, rgba(139, 124, 255, 0.06), transparent 40%),
+    radial-gradient(circle at bottom left, rgba(255, 126, 107, 0.04), transparent 40%);
+  background-attachment: fixed;
+}
+
+.orb-glass-sphere {
+  border-radius: 50% !important; /* Forces it to remain a perfect circle always */
+  background: radial-gradient(
+    circle at calc(var(--mouse-x, 0.5) * 100%) calc(var(--mouse-y, 0.5) * 100%),
+    var(--color-accent-orange) 0%,
+    var(--color-accent-coral) 20%,
+    var(--color-accent-purple-light) 60%,
+    var(--color-accent-purple) 100%
+  );
+  box-shadow: 
+    inset calc((var(--mouse-x, 0.5) - 0.5) * -80px) calc((var(--mouse-y, 0.5) - 0.5) * -80px) 40px rgba(255, 255, 255, 0.6),
+    0 20px 80px rgba(109, 94, 245, 0.2);
+}
