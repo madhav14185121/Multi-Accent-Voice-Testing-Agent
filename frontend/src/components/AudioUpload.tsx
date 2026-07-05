@@ -23,7 +23,7 @@ export const AudioUpload = React.memo(function AudioUpload() {
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const droppedFile = e.dataTransfer.files[0];
       validateAndSetFile(droppedFile);
@@ -88,11 +88,11 @@ export const AudioUpload = React.memo(function AudioUpload() {
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
           aria-label="Upload Audio File"
         />
-        
+
         <motion.div animate={{ scale: isDragging ? 1.1 : 1 }}>
           <UploadCloud className={`mb-2 ${isDragging ? "text-accent-purple" : "text-foreground/40"}`} size={28} />
         </motion.div>
-        
+
         <p className="text-sm font-medium text-foreground text-center">
           <span className="text-accent-purple underline">Click to upload</span> or drag and drop
         </p>
@@ -136,7 +136,7 @@ export const AudioUpload = React.memo(function AudioUpload() {
                 )}
               </button>
             ) : (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="mt-4 p-4 bg-accent-purple/5 border border-accent-purple/20 rounded-[12px] flex flex-col gap-2"

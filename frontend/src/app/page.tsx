@@ -155,7 +155,15 @@ export default function Home() {
 
           {/* Center Column: Orb & Controls (Order 1 on mobile, 2 on desktop) */}
           <div className="flex flex-col items-center flex-1 w-full max-w-[600px] order-1 xl:order-2">
-            <Orb isRecording={isRecording} volume={volume} />
+            <Orb 
+              state={
+                status === "Listening..." ? "listening" :
+                (status === "Detecting Accent..." || status === "Thinking...") ? "thinking" :
+                status === "Speaking..." ? "speaking" : "idle"
+              } 
+              audioLevel={volume} 
+              hoverStrength={1}
+            />
             
             {/* Status Text */}
             <div className="h-8 flex items-center justify-center mb-8">

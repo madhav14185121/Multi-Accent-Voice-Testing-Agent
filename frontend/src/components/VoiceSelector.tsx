@@ -28,7 +28,7 @@ export const VoiceSelector = React.memo(function VoiceSelector({
       <h3 className="text-xs font-bold uppercase tracking-widest text-foreground/40 mb-3">
         Voice Settings
       </h3>
-      
+
       <div className="relative">
         <button
           onClick={() => setIsOpen(!isOpen)}
@@ -52,7 +52,7 @@ export const VoiceSelector = React.memo(function VoiceSelector({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
               transition={{ duration: 0.2 }}
-              className="absolute top-full left-0 right-0 mt-2 bg-white/80 backdrop-blur-xl border border-white/60 shadow-xl rounded-[12px] overflow-hidden z-50 origin-top"
+              className="absolute top-full left-0 right-0 mt-2 bg-white border border-black/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] rounded-[12px] overflow-hidden z-50 origin-top"
               role="listbox"
             >
               {voices.map((voice) => (
