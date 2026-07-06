@@ -59,3 +59,17 @@ This document maintains a chronological record of all changes, features added, i
 
 ### 7. Unadopted Rive Animation Exploration
 - **Note:** Briefly attempted to clone and extract an animated Rive orb from an external repository (`yi-lai-design/rive-voice-agent`). This approach was ultimately not adopted in favor of the lightweight, highly customizable Canvas 2D particle implementation, which fit the existing project structure perfectly without relying on external `.riv` binaries. Temporary folders generated during this exploration (`rive-temp/`, `voiceorb-temp/`) are scheduled for cleanup.
+
+---
+
+## Date: 2026-07-06
+
+### 8. Phase 1 Backend Implementation & WebSocket Integration
+- **Feature/Change:** Established the foundational backend architecture and connected it to the frontend via real-time WebSockets to stream microphone audio.
+- **How it was added:**
+  - **Backend:** Created a new FastAPI application in the `backend/` directory. Added standard configurations, CORS middleware, and set up a modular folder structure for future services (`services/stt`, `services/llm`, `services/tts`, `services/accent`, `utils`, `schemas`, `models`). Implemented a WebSocket endpoint (`/ws/audio`) that accepts connections, continuously receives binary audio chunks, logs their size, and emits JSON acknowledgement events (`{"type": "ack", "status": "received"}`).
+  - **Frontend:** Modified `frontend/src/app/page.tsx` to establish a WebSocket connection to the backend. Replaced the mocked `setTimeout` conversation flow with a real `MediaRecorder` instance that chunks microphone stream data every 300ms and sends it directly over the WebSocket. The frontend now dynamically updates its status and Orb animation state based on real events emitted by the backend state machine.
+- **File Location:**
+  - Backend Entry & Settings: `backend/run.py`, `backend/app/main.py`, `backend/app/config.py`, `backend/requirements.txt`
+  - Backend Routers: `backend/app/api/websocket.py`, `backend/app/api/upload.py`, `backend/app/api/feedback.py`
+  - Frontend Modifications: `frontend/src/app/page.tsx`
