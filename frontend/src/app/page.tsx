@@ -32,6 +32,8 @@ export default function Home() {
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
   // Timer logic for conversation
   useEffect(() => {
@@ -79,23 +81,57 @@ export default function Home() {
       
       animateVolume();
 
-      // Mock conversation progression
-      setTimeout(() => {
-        if (streamRef.current) {
-          setStatus("Detecting Accent...");
-          setTimeout(() => {
-            setStatus("Thinking...");
-            setMessages(prev => [...prev, { id: Date.now(), sender: "User", text: "Hello! Can you tell me a joke?" }]);
-            setTimeout(() => {
-              setStatus("Speaking...");
-              setMessages(prev => [...prev, { id: Date.now(), sender: "Aria", text: "Why don't scientists trust atoms? Because they make up everything!" }]);
-              setTimeout(() => {
-                setStatus("Listening...");
-              }, 4000);
-            }, 1500);
-          }, 1500);
+      // Initialize WebSocket connection
+      const ws = new WebSocket("ws://localhost:8000/ws/audio");
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        console.log("WebSocket connected");
+        
+        // Start MediaRecorder
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+
+        mediaRecorder.ondataavailable = async (e) => {
+          if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
+            const arrayBuffer = await e.data.arrayBuffer();
+            ws.send(arrayBuffer);
+          }
+        };
+
+        mediaRecorder.start(300); // 300ms chunks
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === "state" && data.status) {
+            // Update status based on backend event, map to frontend expected strings or orb states
+            if (data.status === "listening") setStatus("Listening...");
+            else if (data.status === "thinking") setStatus("Thinking...");
+            else if (data.status === "speaking") setStatus("Speaking...");
+            else if (data.status === "error") setStatus("Ready"); // fallback
+            else setStatus(data.status);
+          } else if (data.type === "message") {
+            setMessages(prev => [...prev, { id: Date.now(), sender: data.sender || "Aria", text: data.message }]);
+          } else if (data.type === "ack") {
+            console.log("Backend Ack:", data.message);
+          }
+        } catch (e) {
+          console.error("Error parsing WebSocket message", e);
         }
-      }, 5000);
+      };
+
+      ws.onclose = () => {
+        console.log("WebSocket closed");
+        if (isRecording) {
+          endConversation();
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error("WebSocket error", error);
+      };
 
     } catch (err) {
       console.error("Microphone error:", err);
@@ -105,6 +141,14 @@ export default function Home() {
 
   const endConversation = useCallback(() => {
     if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current = null;
+    }
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
     }
