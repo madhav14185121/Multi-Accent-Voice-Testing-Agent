@@ -3,7 +3,7 @@
 import React, { useEffect, useRef } from "react";
 import { motion, useSpring, useMotionValue, useTransform } from "framer-motion";
 
-export type VoiceState = "idle" | "listening" | "thinking" | "speaking";
+export type VoiceState = "idle" | "connecting" | "listening" | "thinking" | "speaking";
 
 export interface OrbProps {
   state: VoiceState;

@@ -17,7 +17,7 @@ type Message = {
   text: string;
 };
 
-type Status = "Ready" | "Listening..." | "Detecting Accent..." | "Thinking..." | "Speaking..." | "Conversation Complete";
+type Status = "Ready" | "Connecting..." | "Listening..." | "Detecting Accent..." | "Thinking..." | "Speaking..." | "Conversation Complete";
 
 export default function Home() {
   const [isRecording, setIsRecording] = useState(false);
@@ -63,9 +63,9 @@ export default function Home() {
       source.connect(analyserRef.current);
 
       setIsRecording(true);
-      setStatus("Listening...");
+      setStatus("Connecting...");
       setTime(0);
-      setMessages([{ id: Date.now(), sender: "Aria", text: "Hi there! I'm listening. How can I help you today?" }]);
+      setMessages([{ id: Date.now(), sender: "Aria", text: "Hi there! Connecting to server..." }]);
 
       const animateVolume = () => {
         if (!analyserRef.current) return;
@@ -105,16 +105,24 @@ export default function Home() {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.type === "state" && data.status) {
-            // Update status based on backend event, map to frontend expected strings or orb states
-            if (data.status === "listening") setStatus("Listening...");
-            else if (data.status === "thinking") setStatus("Thinking...");
-            else if (data.status === "speaking") setStatus("Speaking...");
-            else if (data.status === "error") setStatus("Ready"); // fallback
-            else setStatus(data.status);
-          } else if (data.type === "message") {
-            setMessages(prev => [...prev, { id: Date.now(), sender: data.sender || "Aria", text: data.message }]);
-          } else if (data.type === "ack") {
+          
+          if (data.event === "connected") {
+            // Transition to listening after a short delay
+            setTimeout(() => {
+              setStatus("Listening...");
+              setMessages(prev => [...prev, { id: Date.now(), sender: "Aria", text: "I'm listening. How can I help you today?" }]);
+            }, 1000);
+          } else if (data.event === "listening") {
+            setStatus("Listening...");
+          } else if (data.event === "thinking") {
+            setStatus("Thinking...");
+          } else if (data.event === "speaking") {
+            setStatus("Speaking...");
+          } else if (data.event === "error") {
+            setStatus("Ready");
+          } else if (data.event === "assistant_text") {
+            setMessages(prev => [...prev, { id: Date.now(), sender: "Aria", text: data.message }]);
+          } else if (data.event === "ack") {
             console.log("Backend Ack:", data.message);
           }
         } catch (e) {
@@ -201,6 +209,7 @@ export default function Home() {
           <div className="flex flex-col items-center flex-1 w-full max-w-[600px] order-1 xl:order-2">
             <Orb 
               state={
+                status === "Connecting..." ? "connecting" :
                 status === "Listening..." ? "listening" :
                 (status === "Detecting Accent..." || status === "Thinking...") ? "thinking" :
                 status === "Speaking..." ? "speaking" : "idle"
