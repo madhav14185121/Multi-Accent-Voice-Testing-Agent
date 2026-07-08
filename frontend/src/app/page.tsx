@@ -204,9 +204,10 @@ export default function Home() {
             className="flex flex-col gap-6 w-full max-w-[300px] order-2 xl:order-1"
           >
             <VoiceSelector selectedVoice={selectedVoice} setSelectedVoice={setSelectedVoice} />
-            <AudioUpload onDetected={(accent, confidence) => {
+            <AudioUpload onDetected={(accent, confidence, duration) => {
               setDetectedAccent(accent);
               setDetectedConfidence(confidence);
+              setTime(duration);
             }} />
           </motion.div>
 

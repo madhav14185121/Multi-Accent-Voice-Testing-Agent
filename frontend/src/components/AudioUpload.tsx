@@ -4,7 +4,7 @@ import React, { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { UploadCloud, FileAudio, PlayCircle, Loader2 } from "lucide-react";
 
-export const AudioUpload = React.memo(function AudioUpload({ onDetected }: { onDetected?: (accent: string, confidence: number) => void }) {
+export const AudioUpload = React.memo(function AudioUpload({ onDetected }: { onDetected?: (accent: string, confidence: number, duration: number) => void }) {
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -79,7 +79,7 @@ export const AudioUpload = React.memo(function AudioUpload({ onDetected }: { onD
       } else if (data.success) {
         setResult({ accent: data.accent, confidence: data.confidence });
         if (onDetected) {
-          onDetected(data.accent, data.confidence);
+          onDetected(data.accent, data.confidence, Math.round(data.duration_seconds));
         }
       }
     } catch (err: any) {
