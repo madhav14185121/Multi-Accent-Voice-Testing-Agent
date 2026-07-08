@@ -7,6 +7,9 @@ pydantic-settings==2.2.1
 faster-whisper
 speechbrain
 torch
+torchaudio
+transformers>=4.35
+librosa
 scikit-learn
 numpy
 soundfile

@@ -26,6 +26,8 @@ export default function Home() {
   const [volume, setVolume] = useState(0);
   const [time, setTime] = useState(0);
   const [selectedVoice, setSelectedVoice] = useState("Indian English");
+  const [detectedAccent, setDetectedAccent] = useState<string | null>(null);
+  const [detectedConfidence, setDetectedConfidence] = useState<number | null>(null);
   
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -202,7 +204,10 @@ export default function Home() {
             className="flex flex-col gap-6 w-full max-w-[300px] order-2 xl:order-1"
           >
             <VoiceSelector selectedVoice={selectedVoice} setSelectedVoice={setSelectedVoice} />
-            <AudioUpload />
+            <AudioUpload onDetected={(accent, confidence) => {
+              setDetectedAccent(accent);
+              setDetectedConfidence(confidence);
+            }} />
           </motion.div>
 
           {/* Center Column: Orb & Controls (Order 1 on mobile, 2 on desktop) */}
@@ -305,7 +310,11 @@ export default function Home() {
             transition={{ duration: 0.8, delay: 0.3 }}
             className="flex flex-col items-center xl:items-start w-full max-w-[240px] order-3 xl:order-3"
           >
-            <TelemetryCard accent={selectedVoice} confidence={97} time={time} />
+            <TelemetryCard 
+              accent={detectedAccent ?? selectedVoice} 
+              confidence={detectedConfidence ?? 0} 
+              time={time} 
+            />
           </motion.div>
 
         </div>

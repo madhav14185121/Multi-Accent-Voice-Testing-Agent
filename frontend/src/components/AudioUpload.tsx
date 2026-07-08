@@ -4,11 +4,12 @@ import React, { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { UploadCloud, FileAudio, PlayCircle, Loader2 } from "lucide-react";
 
-export const AudioUpload = React.memo(function AudioUpload() {
+export const AudioUpload = React.memo(function AudioUpload({ onDetected }: { onDetected?: (accent: string, confidence: number) => void }) {
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<{ accent: string; confidence: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -49,22 +50,43 @@ export const AudioUpload = React.memo(function AudioUpload() {
     }
     setFile(f);
     setResult(null);
+    setError(null);
   };
 
   const formatSize = (bytes: number) => {
     return (bytes / (1024 * 1024)).toFixed(2) + " MB";
   };
 
-  const handleRunDetection = () => {
+  const handleRunDetection = async () => {
     if (!file) return;
     setIsProcessing(true);
     setResult(null);
+    setError(null);
 
-    // Mock processing delay
-    setTimeout(() => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("http://localhost:8000/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.detail || "An error occurred during detection");
+      } else if (data.success) {
+        setResult({ accent: data.accent, confidence: data.confidence });
+        if (onDetected) {
+          onDetected(data.accent, data.confidence);
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to connect to server");
+    } finally {
       setIsProcessing(false);
-      setResult({ accent: "Indian English", confidence: 94.2 });
-    }, 2500);
+    }
   };
 
   return (
@@ -118,23 +140,30 @@ export const AudioUpload = React.memo(function AudioUpload() {
             </div>
 
             {!result ? (
-              <button
-                onClick={handleRunDetection}
-                disabled={isProcessing}
-                className="w-full mt-4 flex items-center justify-center gap-2 bg-foreground text-background px-4 py-3 rounded-[12px] text-sm font-semibold transition-all hover:bg-foreground/90 disabled:opacity-70"
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <PlayCircle size={16} />
-                    Run Accent Detection
-                  </>
+              <>
+                <button
+                  onClick={handleRunDetection}
+                  disabled={isProcessing}
+                  className="w-full mt-4 flex items-center justify-center gap-2 bg-foreground text-background px-4 py-3 rounded-[12px] text-sm font-semibold transition-all hover:bg-foreground/90 disabled:opacity-70"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <PlayCircle size={16} />
+                      Run Accent Detection
+                    </>
+                  )}
+                </button>
+                {error && (
+                  <div className="mt-2 text-xs text-red-500 font-medium text-center">
+                    {error}
+                  </div>
                 )}
-              </button>
+              </>
             ) : (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
