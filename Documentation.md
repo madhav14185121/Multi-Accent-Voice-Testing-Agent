@@ -96,3 +96,38 @@ https://accent.gmu.edu/browse_language.php?function=find&language=english
 - **Feature/Change:** Updated the GitHub link in the navigation bar to point to the correct project repository.
 - **How it was added:** Replaced the empty `href="#"` with the repository URL and added external target attributes (`target="_blank"`, `rel="noopener noreferrer"`) for better security.
 - **File Location:** `frontend/src/components/Navbar.tsx`
+
+---
+
+## Date: 2026-07-10
+
+### 11. Supabase Integration — Storage & Database
+- **Feature/Change:** Integrated Supabase into the backend to persist uploaded audio files in cloud storage and save accent detection reports to a PostgreSQL database. The upload flow now stores files in a Supabase `audio-uploads` bucket and inserts report rows into an `accent_reports` table, all with graceful fallback — if Supabase is unreachable, accent detection still works normally.
+- **How it was added:**
+  - **Config:** Extended the Pydantic `Settings` class in `config.py` with `supabase_url`, `supabase_service_role_key`, and `supabase_bucket` fields, loaded from `.env`.
+  - **Environment:** Created `backend/.env.example` as a credential template, `backend/.gitignore` to exclude `.env` and cache files, and `backend/.env` with actual Supabase project URL and service role key.
+  - **Storage Service:** Created a new `SupabaseService` singleton class at `backend/app/services/storage/supabase_client.py` following the existing singleton pattern (like `accent_detector`). Provides methods for `upload_audio()`, `save_report()`, `list_reports()`, `get_report()`, and `delete_report()`.
+  - **Upload Endpoint:** Modified `backend/app/api/upload.py` to call Supabase after accent detection. Uploads the audio file with a unique filename, converts `top3` scores to a dictionary, builds a report matching the DB schema, and saves it. Adds `report_id`, `file_url`, and `top3` to the response without removing any existing fields. All Supabase calls are wrapped in try/except so failures don't break the upload response.
+  - **Dependencies:** Upgraded `websockets` from 12.0 to 15.0.1 to resolve `ModuleNotFoundError: No module named 'websockets.asyncio'` caused by the `supabase` package's `realtime` dependency.
+- **File Location:**
+  - Backend: `backend/app/config.py`, `backend/app/services/storage/__init__.py` (NEW), `backend/app/services/storage/supabase_client.py` (NEW), `backend/app/api/upload.py`
+  - Config: `backend/.env.example` (NEW), `backend/.gitignore` (NEW), `backend/.env` (NEW, gitignored)
+
+### 12. History API & Frontend Pages
+- **Feature/Change:** Added a full history feature — a backend API to list, view, and delete past accent reports, and two new frontend pages to browse and inspect them.
+- **How it was added:**
+  - **Backend API:** Created `backend/app/api/history.py` with three endpoints: `GET /api/history` (list last 50 reports), `GET /api/history/{id}` (single report, 404 if not found), and `DELETE /api/history/{id}` (remove a report). Registered the router in `main.py`.
+  - **History List Page:** Created `frontend/src/app/history/page.tsx` — a client component that fetches all reports and displays them as animated cards with file name, detected accent badge, confidence percentage, duration, and timestamp. Includes loading spinner, error state, and empty state with a link back to the homepage.
+  - **Report Detail Page:** Created `frontend/src/app/history/[id]/page.tsx` — a client component that shows full report details including an `<audio>` player for the uploaded file, stat cards for accent/confidence/duration (styled like `TelemetryCard`), animated horizontal bars for all accent scores with color gradients, and a telemetry JSON code block. Uses Next.js dynamic routing via `useParams()`.
+  - Both pages reuse the existing `Navbar` component and follow the project's design system (`bg-white/40 backdrop-blur-xl`, `rounded-[24px]`, `shadow-accent-purple/5`, framer-motion animations, lucide-react icons).
+- **File Location:**
+  - Backend: `backend/app/api/history.py` (NEW), `backend/app/main.py`
+  - Frontend: `frontend/src/app/history/page.tsx` (NEW), `frontend/src/app/history/[id]/page.tsx` (NEW)
+
+### 13. Navbar & VoiceSelector UI Improvements
+- **Feature/Change:** Made the "ARIA" logo in the navbar a clickable link back to the homepage, added a "History" navigation link with a clock icon, and fixed the voice selector dropdown to close when clicking anywhere outside it.
+- **How it was added:**
+  - **Navbar:** Changed the ARIA title from a `<div>` to an `<a href="/">` with a hover color transition. Added a new `/history` link with the `Clock` icon from lucide-react, placed alongside the existing GitHub/Documentation/About links using the same styling.
+  - **VoiceSelector:** Added a `useRef` on the dropdown container and a `useEffect` with a `mousedown` document listener that closes the dropdown when clicking outside. The listener is only attached while the dropdown is open, and cleaned up on unmount.
+- **File Location:**
+  - Frontend: `frontend/src/components/Navbar.tsx`, `frontend/src/components/VoiceSelector.tsx`
