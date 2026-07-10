@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
-from app.api import websocket, upload, feedback
+from app.api import websocket, upload, feedback, history
 from app.config import settings
 
 logging.basicConfig(level=logging.INFO)
@@ -23,6 +23,7 @@ app.add_middleware(
 app.include_router(websocket.router, prefix="/ws", tags=["websocket"])
 app.include_router(upload.router, prefix="/api", tags=["upload"])
 app.include_router(feedback.router, prefix="/api", tags=["feedback"])
+app.include_router(history.router, prefix="/api", tags=["history"])
 
 @app.get("/")
 async def health_check():
