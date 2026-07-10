@@ -76,3 +76,23 @@ https://accent.gmu.edu/browse_language.php?function=find&language=english
   - Backend Entry & Settings: `backend/run.py`, `backend/app/main.py`, `backend/app/config.py`, `backend/requirements.txt`
   - Backend Routers: `backend/app/api/websocket.py`, `backend/app/api/upload.py`, `backend/app/api/feedback.py`
   - Frontend Modifications: `frontend/src/app/page.tsx`
+
+---
+
+## Date: 2026-07-09
+
+### 9. End-to-End Audio Upload Accent Detection
+- **Feature/Change:** Implemented a complete machine learning pipeline to perform real accent detection on uploaded audio files, replacing the previous mocked timeout. The system accepts `.wav`, `.mp3`, and `.m4a` files, extracts the accent and confidence level, and displays the audio duration on the live telemetry.
+- **How it was added:**
+  - **Backend ML:** Created a new `AccentDetector` Singleton class using PyTorch, `librosa`, and the Hugging Face `transformers` pipeline to load the `dima806/english_accents_classification` Wav2Vec2 model.
+  - **Backend API:** Replaced the placeholder `/api/upload` endpoint with a real FastAPI POST endpoint that validates audio files and handles inference. Also fixed missing methods in `SessionManager`.
+  - **Frontend:** Updated the `AudioUpload.tsx` component to hit the real endpoint via the `fetch` API using `FormData`. Lifted the detected accent, confidence, and duration state up to `page.tsx` so the results dynamically sync with the `TelemetryCard.tsx`.
+  - **Dependencies:** Added `transformers`, `torch`, `torchaudio`, `librosa`, and `soundfile` to `requirements.txt`. Used `python -m pip` to install dependencies to bypass local pip path issues.
+- **File Location:** 
+  - Backend: `backend/app/services/accent/detector.py` (NEW), `backend/app/api/upload.py`, `backend/app/services/session/manager.py`, `backend/requirements.txt`
+  - Frontend: `frontend/src/components/AudioUpload.tsx`, `frontend/src/app/page.tsx`, `frontend/src/components/TelemetryCard.tsx`
+
+### 10. Navbar Updates
+- **Feature/Change:** Updated the GitHub link in the navigation bar to point to the correct project repository.
+- **How it was added:** Replaced the empty `href="#"` with the repository URL and added external target attributes (`target="_blank"`, `rel="noopener noreferrer"`) for better security.
+- **File Location:** `frontend/src/components/Navbar.tsx`
