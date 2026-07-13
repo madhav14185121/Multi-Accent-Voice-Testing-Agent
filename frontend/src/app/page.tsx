@@ -312,7 +312,7 @@ export default function Home() {
             className="flex flex-col items-center xl:items-start w-full max-w-[240px] order-3 xl:order-3"
           >
             <TelemetryCard 
-              accent={detectedAccent ?? selectedVoice} 
+              accent={detectedAccent} 
               confidence={detectedConfidence ?? 0} 
               time={time} 
             />

@@ -4,7 +4,7 @@ import React from "react";
 import { motion } from "framer-motion";
 
 interface TelemetryCardProps {
-  accent: string;
+  accent: string | null;
   confidence: number;
   time: number;
 }
@@ -34,7 +34,7 @@ export const TelemetryCard = React.memo(function TelemetryCard({
       <div className="space-y-4">
         <div>
           <span className="block text-xs font-semibold text-foreground/50 uppercase mb-1">Accent</span>
-          <span className="block text-sm font-bold text-foreground">{accent}</span>
+          <span className="block text-sm font-bold text-foreground">{accent || "N/A"}</span>
         </div>
         
         <div>
