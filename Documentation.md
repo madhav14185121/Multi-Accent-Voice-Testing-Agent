@@ -96,3 +96,21 @@ https://accent.gmu.edu/browse_language.php?function=find&language=english
 - **Feature/Change:** Updated the GitHub link in the navigation bar to point to the correct project repository.
 - **How it was added:** Replaced the empty `href="#"` with the repository URL and added external target attributes (`target="_blank"`, `rel="noopener noreferrer"`) for better security.
 - **File Location:** `frontend/src/components/Navbar.tsx`
+
+---
+
+## Date: 2026-07-13
+
+### 11. Real-time Audio Pipeline Refactor & STT Integration
+- **Feature/Change:** Completely refactored the backend audio pipeline to serve as a reusable, modular foundation for all AI services. Replaced mocked transcription with Faster-Whisper.
+- **How it was added:**
+  - **Frontend:** Modified `MediaRecorder` in `page.tsx` to stop/start recording per chunk, ensuring complete, valid WebM blobs are sent over WebSockets. Added UI handling for real-time `transcript` events.
+  - **Backend Core:** Created `AudioProcessor` as a singleton for centralized WebM -> WAV conversion using `FFmpeg`. Created `AudioPipelineContext` to pass normalized WAV paths down the pipeline securely.
+  - **Backend STT:** Stripped conversion logic from `WhisperTranscriber`, making it a pure 16kHz WAV transcription engine. Configured it to use `distil-small.en` with optimized VAD parameters and `condition_on_previous_text=True`.
+  - **Backend Accumulator:** Implemented `ConversationAccumulator` to buffer normalized speech up to a 12s threshold for future AI tasks (like continuous accent detection).
+  - **Backend Orchestration:** Rewrote the `websocket.py` endpoint as a pure orchestrator that manages the context lifecycle without holding business logic, ensuring robust exception handling (`WebSocketDisconnect`). Added structured conversation tracking to `SessionManager`.
+- **File Location:**
+  - Frontend: `frontend/src/app/page.tsx`
+  - Backend Audio Services: `backend/app/services/audio/context.py`, `backend/app/services/audio/processor.py`, `backend/app/services/audio/accumulator.py`, `backend/app/services/audio/buffer.py`, `backend/app/services/audio/__init__.py`
+  - Backend STT: `backend/app/services/stt/transcriber.py`, `backend/app/services/stt/__init__.py`
+  - Backend Socket/Session: `backend/app/api/websocket.py`, `backend/app/services/session/manager.py`
