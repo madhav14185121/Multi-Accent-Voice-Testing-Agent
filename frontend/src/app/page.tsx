@@ -90,18 +90,44 @@ export default function Home() {
       ws.onopen = () => {
         console.log("WebSocket connected");
         
-        // Start MediaRecorder
-        const mediaRecorder = new MediaRecorder(stream);
+        // Start MediaRecorder — no timeslice, so stop() gives one complete WebM blob
+        const mediaRecorder = new MediaRecorder(stream, {
+          mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+            ? 'audio/webm;codecs=opus'
+            : 'audio/webm',
+        });
         mediaRecorderRef.current = mediaRecorder;
 
         mediaRecorder.ondataavailable = async (e) => {
           if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
             const arrayBuffer = await e.data.arrayBuffer();
             ws.send(arrayBuffer);
+            console.log(`Sent complete WebM blob: ${arrayBuffer.byteLength} bytes`);
           }
         };
 
-        mediaRecorder.start(300); // 300ms chunks
+        mediaRecorder.onstop = () => {
+          // Restart recording for the next segment (unless we're ending)
+          if (ws.readyState === WebSocket.OPEN && mediaRecorderRef.current) {
+            try {
+              mediaRecorder.start();
+            } catch (_) {
+              // stream may have been stopped
+            }
+          }
+        };
+
+        // Every 5 seconds, stop the recorder to flush a complete WebM blob
+        const sendInterval = setInterval(() => {
+          if (mediaRecorder.state === "recording") {
+            mediaRecorder.stop(); // triggers ondataavailable then onstop
+          }
+        }, 5000);
+
+        // Store the interval so we can clean it up
+        (wsRef.current as any).__sendInterval = sendInterval;
+
+        mediaRecorder.start(); // no timeslice — continuous recording
       };
 
       ws.onmessage = (event) => {
@@ -124,6 +150,12 @@ export default function Home() {
             setStatus("Ready");
           } else if (data.event === "assistant_text") {
             setMessages(prev => [...prev, { id: Date.now(), sender: "Aria", text: data.message }]);
+          } else if (data.event === "transcript") {
+            // User speech transcription from backend
+            if (data.text) {
+              setMessages(prev => [...prev, { id: Date.now(), sender: "User", text: data.text }]);
+              setStatus("Listening...");
+            }
           } else if (data.event === "ack") {
             console.log("Backend Ack:", data.message);
           }
@@ -156,6 +188,10 @@ export default function Home() {
       mediaRecorderRef.current = null;
     }
     if (wsRef.current) {
+      // Clean up the send interval
+      if ((wsRef.current as any).__sendInterval) {
+        clearInterval((wsRef.current as any).__sendInterval);
+      }
       wsRef.current.close();
       wsRef.current = null;
     }
