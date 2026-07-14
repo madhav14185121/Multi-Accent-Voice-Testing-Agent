@@ -99,7 +99,7 @@ https://accent.gmu.edu/browse_language.php?function=find&language=english
 
 ---
 
-<<<<<<< HEAD
+
 ## Date: 2026-07-13
 
 ### 11. Real-time Audio Pipeline Refactor & STT Integration
@@ -175,3 +175,21 @@ Because we designed the architecture to be highly modular, swapping out the AI b
 - **If someone wants to use a different LLM (e.g., GPT-4 or Claude instead of Llama 3):**
   They only need to edit one single file: `backend/app/services/llm/client.py`.
   The rest of the app only ever calls `llm_client.chat(messages)`. They just need to update that one function to send the list of messages to OpenAI/Anthropic instead of your local Ollama server. Because we separated the system prompts and conversation history into their own managers, swapping the LLM is as simple as updating that single API call.
+
+---
+
+## Date: 2026-07-15
+
+### 16. Modular UI Redesign & 3-Column Layout
+- **Feature/Change:** Completely refactored the frontend interface from a single monolithic `page.tsx` into a modular, highly scalable 3-column architecture. Transformed the application from a simple demo into a premium AI product experience (with a clean, spacious, light-themed aesthetic).
+- **How it was added:**
+  - Extracted the left sidebar elements (`VoiceSelector`, `AudioUpload`, `TelemetryCard`) into a unified `ControlSidebar.tsx`.
+  - Created a `RightPanel.tsx` that acts as a glassmorphic container, dynamically swapping views between Live Conversation and Audio Analysis using Framer Motion.
+  - Built `ConversationPanel.tsx` with a ChatGPT-style typewriter effect for ARIA's replies, user-side dictation animations, and auto-scrolling logic.
+  - Extracted `ReportView.tsx` to handle audio analytics visualization, which is cleverly reused by both the `RightPanel` and the `/history` routes.
+  - Implemented `HistoryDrawer.tsx` as a sleek slide-out drawer that loads past reports without navigating away from the main page.
+  - Managed overall layout orchestration with `HomeLayout.tsx`, leaving `page.tsx` extremely clean and strictly focused on state and WebSocket logic.
+- **File Location:**
+  - New Layout & Components: `frontend/src/components/HomeLayout.tsx`, `frontend/src/components/ControlSidebar.tsx`, `frontend/src/components/RightPanel.tsx`, `frontend/src/components/ConversationPanel.tsx`, `frontend/src/components/ReportView.tsx`, `frontend/src/components/HistoryDrawer.tsx`
+  - Refactored Main Orchestrator: `frontend/src/app/page.tsx`
+  - Types: `frontend/src/types.ts`
