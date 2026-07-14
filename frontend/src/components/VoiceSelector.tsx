@@ -37,15 +37,15 @@ export const VoiceSelector = React.memo(function VoiceSelector({
   }, [isOpen]);
 
   return (
-    <div ref={dropdownRef} className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-xl shadow-accent-purple/5 rounded-[24px] p-5 w-full relative z-40">
-      <h3 className="text-xs font-bold uppercase tracking-widest text-foreground/40 mb-3">
+    <div ref={dropdownRef} className="bg-white/40 backdrop-blur-2xl border border-white/60 shadow-2xl shadow-accent-purple/10 rounded-[28px] p-6 w-full relative z-40">
+      <h3 className="text-xs font-bold uppercase tracking-widest text-foreground/40 mb-4">
         Voice Settings
       </h3>
 
       <div className="relative">
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="w-full flex items-center justify-between bg-white border border-black/5 px-4 py-3 rounded-[12px] text-sm font-semibold text-foreground hover:bg-black/5 transition-colors"
+          className="w-full flex items-center justify-between bg-white/80 border border-black/5 px-4 py-3.5 rounded-[16px] text-sm font-semibold text-foreground hover:bg-white transition-all shadow-sm active:scale-[0.98]"
           aria-haspopup="listbox"
           aria-expanded={isOpen}
         >
@@ -54,18 +54,18 @@ export const VoiceSelector = React.memo(function VoiceSelector({
             animate={{ rotate: isOpen ? 180 : 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 20 }}
           >
-            <ChevronDown size={16} className="text-foreground/50" />
+            <ChevronDown size={18} className="text-foreground/50" />
           </motion.div>
         </button>
 
         <AnimatePresence>
           {isOpen && (
             <motion.ul
-              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+              initial={{ opacity: 0, y: -5, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.95 }}
+              exit={{ opacity: 0, y: -5, scale: 0.98 }}
               transition={{ duration: 0.2 }}
-              className="absolute top-full left-0 right-0 mt-2 bg-white border border-black/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] rounded-[12px] overflow-hidden z-50 origin-top"
+              className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-xl border border-black/5 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] rounded-[16px] overflow-hidden z-50 origin-top p-1"
               role="listbox"
             >
               {voices.map((voice) => (
@@ -77,8 +77,8 @@ export const VoiceSelector = React.memo(function VoiceSelector({
                     setSelectedVoice(voice);
                     setIsOpen(false);
                   }}
-                  className={`flex items-center justify-between px-4 py-3 text-sm cursor-pointer transition-colors hover:bg-black/5
-                    ${selectedVoice === voice ? "text-accent-purple font-semibold bg-accent-purple/5" : "text-foreground font-medium"}
+                  className={`flex items-center justify-between px-4 py-3 text-sm cursor-pointer rounded-[12px] transition-colors hover:bg-black/5 m-0.5
+                    ${selectedVoice === voice ? "text-accent-purple font-semibold bg-accent-purple/10" : "text-foreground font-medium"}
                   `}
                 >
                   {voice}
