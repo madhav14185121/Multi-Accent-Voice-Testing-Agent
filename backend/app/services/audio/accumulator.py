@@ -20,7 +20,7 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 # Target speech duration before accent detection can run
-_TARGET_SPEECH_SECONDS: float = 12.0  # ~10-15s sweet spot
+_TARGET_SPEECH_SECONDS: float = 20.0  # ~10-15s sweet spot
 
 
 class ConversationAccumulator:
