@@ -2,17 +2,20 @@
 
 import React from "react";
 import { motion } from "framer-motion";
+import { Loader2 } from "lucide-react";
 
 interface TelemetryCardProps {
   accent: string;
-  confidence: number;
+  confidence: number | null;
   time: number;
+  isDetecting?: boolean;
 }
 
 export const TelemetryCard = React.memo(function TelemetryCard({
   accent,
   confidence,
   time,
+  isDetecting = false,
 }: TelemetryCardProps) {
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, "0");
@@ -34,12 +37,17 @@ export const TelemetryCard = React.memo(function TelemetryCard({
       <div className="space-y-4">
         <div>
           <span className="block text-xs font-semibold text-foreground/50 uppercase mb-1">Accent</span>
-          <span className="block text-sm font-bold text-foreground">{accent}</span>
+          <span className="flex items-center gap-2 text-sm font-bold text-foreground">
+            {accent}
+            {isDetecting && <Loader2 className="w-3.5 h-3.5 animate-spin text-foreground/50" />}
+          </span>
         </div>
         
         <div>
           <span className="block text-xs font-semibold text-foreground/50 uppercase mb-1">Confidence</span>
-          <span className="block text-sm font-bold text-foreground">{confidence}%</span>
+          <span className="block text-sm font-bold text-foreground">
+            {confidence !== null ? `${confidence}%` : "null"}
+          </span>
         </div>
         
         <div>
