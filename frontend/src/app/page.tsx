@@ -4,18 +4,12 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, PhoneOff, Radio } from "lucide-react";
 
-// Components
-import { Navbar } from "../components/Navbar";
+import { HomeLayout } from "../components/HomeLayout";
+import { ControlSidebar } from "../components/ControlSidebar";
+import { RightPanel } from "../components/RightPanel";
+import { HistoryDrawer } from "../components/HistoryDrawer";
 import { Orb, VoiceState } from "../components/Orb";
-import { VoiceSelector } from "../components/VoiceSelector";
-import { AudioUpload } from "../components/AudioUpload";
-import { TelemetryCard } from "../components/TelemetryCard";
-
-type Message = {
-  id: number;
-  role: "user" | "assistant";
-  text: string;
-};
+import { Message, PanelState, ReportDetail } from "../types";
 
 type ConnectionState = "Disconnected" | "Connecting" | "Connected";
 type ConversationState = "Idle" | "Listening" | "Uploading..." | "Thinking" | "Speaking";
@@ -30,6 +24,9 @@ export default function Home() {
   const [selectedVoice, setSelectedVoice] = useState("Indian English");
   const [detectedAccent, setDetectedAccent] = useState<string | null>(null);
   const [detectedConfidence, setDetectedConfidence] = useState<number | null>(null);
+  
+  const [panelState, setPanelState] = useState<PanelState>({ view: "conversation" });
+  const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
   
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -72,6 +69,7 @@ export default function Home() {
       setDetectedAccent(null);
       setDetectedConfidence(null);
       setMessages([{ id: Date.now(), role: "assistant", text: "Hi there! Connecting to server..." }]);
+      setPanelState({ view: "conversation" });
 
       const animateVolume = () => {
         if (!analyserRef.current) return;
@@ -81,7 +79,6 @@ export default function Home() {
         const sum = dataArray.reduce((a, b) => a + b, 0);
         const avg = sum / dataArray.length;
         
-        // Only show volume when actually listening
         setVolume(mediaRecorderRef.current?.state === "recording" ? avg / 255 : 0);
         animationFrameRef.current = requestAnimationFrame(animateVolume);
       };
@@ -95,7 +92,6 @@ export default function Home() {
       ws.onopen = () => {
         console.log("WebSocket connected");
         
-        // Create MediaRecorder once per session
         const mediaRecorder = new MediaRecorder(stream, {
           mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
             ? 'audio/webm;codecs=opus'
@@ -107,7 +103,6 @@ export default function Home() {
           if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) {
             const arrayBuffer = await e.data.arrayBuffer();
             ws.send(arrayBuffer);
-            console.log(`Sent complete WebM blob: ${arrayBuffer.byteLength} bytes`);
           }
         };
       };
@@ -188,13 +183,13 @@ export default function Home() {
   const handlePressStart = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (conversationState === "Uploading..." || conversationState === "Thinking") {
-      return; // Disabled during processing
+      return; 
     }
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && mediaRecorderRef.current) {
       try {
         wsRef.current.send(JSON.stringify({ action: "start_listening" }));
         mediaRecorderRef.current.start();
-        setConversationState("Listening"); // Optimistic update, backend also emits it
+        setConversationState("Listening"); 
       } catch (err) {
         console.error("Failed to start recording:", err);
       }
@@ -211,6 +206,17 @@ export default function Home() {
         console.error("Failed to stop recording:", err);
       }
     }
+  };
+
+  const handleDetectionComplete = (report: ReportDetail) => {
+    setDetectedAccent(report.predicted_accent);
+    setDetectedConfidence(report.confidence);
+    setTime(report.file_duration || 0);
+    setPanelState({ view: "analysis", payload: report });
+  };
+
+  const handleSelectHistoryReport = (report: ReportDetail) => {
+    setPanelState({ view: "history", payload: report });
   };
 
   // Determine Orb State
@@ -266,191 +272,127 @@ export default function Home() {
       buttonText = "Release to Send";
       buttonIcon = <Mic size={20} className="animate-pulse" />;
     } else {
-      // Idle or Speaking (Speaking allows interrupt, so button is active)
       buttonText = "Hold to Talk";
       buttonIcon = <Mic size={20} />;
     }
   }
 
-  return (
-    <div className="min-h-screen relative flex flex-col items-center overflow-x-hidden">
-      
-      <Navbar />
+  const leftSidebar = (
+    <ControlSidebar 
+      selectedVoice={selectedVoice}
+      setSelectedVoice={setSelectedVoice}
+      onDetectionComplete={handleDetectionComplete}
+      displayAccent={displayAccent}
+      displayConfidence={displayConfidence}
+      time={time}
+      isDetecting={isDetecting}
+    />
+  );
 
-      <main className="flex-1 w-full max-w-[1400px] mx-auto flex flex-col items-center justify-start px-6 pt-32 pb-12 z-10 relative">
+  const centerColumn = (
+    <>
+      <div className="flex-1 w-full flex flex-col items-center justify-center">
+        <Orb 
+          state={orbState} 
+          audioLevel={volume} 
+          hoverStrength={1}
+        />
         
-        {/* Hero Typography */}
-        <motion.div 
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.1 }}
-          className="text-center mb-16 max-w-2xl"
-        >
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-foreground mb-6">
-            Meet Aria
-          </h1>
-          <p className="text-lg md:text-xl text-foreground/60 font-light leading-relaxed">
-            An AI voice assistant that understands your accent, responds naturally, and adapts to how you speak.
-          </p>
-        </motion.div>
-
-        {/* 3-Column Layout */}
-        <div className="flex flex-col xl:flex-row items-center xl:items-start justify-center gap-12 xl:gap-16 w-full">
-          
-          {/* Left Sidebar */}
-          <motion.div 
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="flex flex-col gap-6 w-full max-w-[300px] order-2 xl:order-1"
-          >
-            <VoiceSelector selectedVoice={selectedVoice} setSelectedVoice={setSelectedVoice} />
-            <AudioUpload onDetected={(accent, confidence, duration) => {
-              setDetectedAccent(accent);
-              setDetectedConfidence(confidence);
-              setTime(duration);
-            }} />
-          </motion.div>
-
-          {/* Center Column: Orb & Controls */}
-          <div className="flex flex-col items-center flex-1 w-full max-w-[600px] order-1 xl:order-2">
-            <Orb 
-              state={orbState} 
-              audioLevel={volume} 
-              hoverStrength={1}
-            />
-            
-            {/* Status Text */}
-            <div className="h-8 flex items-center justify-center mb-8">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={conversationState === "Idle" ? connectionState : conversationState}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.3 }}
-                  className="flex items-center gap-3 text-foreground/60 font-medium"
-                >
-                  <div className={`w-2 h-2 rounded-full ${conversationState === "Listening" ? 'bg-accent-coral animate-pulse' : 'bg-accent-purple'}`} />
-                  {connectionState === "Connected" ? conversationState : connectionState}
-                </motion.div>
-              </AnimatePresence>
-            </div>
-
-            {/* Controls */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
+        {/* Status Text */}
+        <div className="h-8 flex items-center justify-center mt-6 mb-8">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={conversationState === "Idle" ? connectionState : conversationState}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.4 }}
-              className="flex flex-col items-center justify-center gap-4 mb-16 w-full select-none"
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className="flex items-center gap-3 text-foreground/60 font-medium"
             >
-              {connectionState === "Disconnected" ? (
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={startConversation}
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 bg-foreground text-background px-8 py-4 rounded-[16px] font-semibold text-lg shadow-[0_10px_40px_rgba(23,23,23,0.15)] transition-shadow hover:shadow-[0_10px_40px_rgba(23,23,23,0.25)]"
-                >
-                  <Radio size={20} />
-                  Connect to Aria
-                </motion.button>
-              ) : (
-                <>
-                  <motion.button
-                    whileHover={buttonDisabled ? {} : { scale: 1.05 }}
-                    whileTap={buttonDisabled ? {} : { scale: 0.95 }}
-                    onMouseDown={buttonDisabled ? undefined : handlePressStart}
-                    onMouseUp={buttonDisabled ? undefined : handlePressEnd}
-                    onMouseLeave={buttonDisabled ? undefined : handlePressEnd}
-                    onTouchStart={buttonDisabled ? undefined : handlePressStart}
-                    onTouchEnd={buttonDisabled ? undefined : handlePressEnd}
-                    disabled={buttonDisabled}
-                    className={`w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-[16px] font-semibold text-lg shadow-[0_10px_40px_rgba(23,23,23,0.15)] transition-all
-                      ${buttonDisabled 
-                        ? 'bg-foreground/10 text-foreground/40 cursor-not-allowed shadow-none' 
-                        : conversationState === "Listening"
-                          ? 'bg-accent-coral text-white'
-                          : 'bg-foreground text-background hover:shadow-[0_10px_40px_rgba(23,23,23,0.25)]'
-                      }`}
-                  >
-                    {buttonIcon}
-                    {buttonText}
-                  </motion.button>
-
-                  <button
-                    onClick={endConversation}
-                    className="mt-2 flex items-center justify-center gap-2 text-foreground/50 border border-foreground/10 px-4 py-2 rounded-full font-medium text-sm hover:bg-black/5 hover:text-foreground/80 transition-colors"
-                  >
-                    <PhoneOff size={14} />
-                    End Conversation
-                  </button>
-                </>
-              )}
+              <div className={`w-2 h-2 rounded-full ${conversationState === "Listening" ? 'bg-accent-coral animate-pulse' : 'bg-accent-purple'}`} />
+              {connectionState === "Connected" ? conversationState : connectionState}
             </motion.div>
-
-            {/* Transcript Panel */}
-            {messages.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                className="w-full bg-white/40 backdrop-blur-xl border border-white/60 shadow-xl shadow-accent-purple/5 rounded-[24px] p-6 overflow-hidden"
-              >
-                <div className="flex flex-col gap-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                  <AnimatePresence>
-                    {messages.map((msg) => (
-                      <motion.div
-                        key={msg.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className={`flex w-full ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                      >
-                        <div 
-                          className={`max-w-[85%] px-5 py-3 rounded-2xl text-[15px] font-medium leading-relaxed
-                            ${msg.role === "user" 
-                              ? "bg-black/5 text-foreground rounded-br-sm" 
-                              : "bg-accent-purple/10 text-accent-purple rounded-bl-sm"
-                            }`}
-                        >
-                          {msg.text}
-                        </div>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                </div>
-              </motion.div>
-            )}
-          </div>
-
-          {/* Right Sidebar: Telemetry */}
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-            className="flex flex-col items-center xl:items-start w-full max-w-[240px] order-3 xl:order-3"
-          >
-            <TelemetryCard 
-              accent={displayAccent} 
-              confidence={displayConfidence} 
-              time={time} 
-              isDetecting={isDetecting}
-            />
-          </motion.div>
-
+          </AnimatePresence>
         </div>
-      </main>
+      </div>
 
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(0, 0, 0, 0.1);
-          border-radius: 10px;
-        }
-      `}</style>
-    </div>
+      {/* Controls */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 0.4 }}
+        className="flex flex-col items-center justify-center gap-4 mb-20 w-full select-none mt-auto"
+      >
+        {connectionState === "Disconnected" ? (
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={startConversation}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-foreground text-background px-8 py-4 rounded-[16px] font-semibold text-lg shadow-[0_10px_40px_rgba(23,23,23,0.15)] transition-shadow hover:shadow-[0_10px_40px_rgba(23,23,23,0.25)]"
+          >
+            <Radio size={20} />
+            Connect to Aria
+          </motion.button>
+        ) : (
+          <>
+            <motion.button
+              whileHover={buttonDisabled ? {} : { scale: 1.05 }}
+              whileTap={buttonDisabled ? {} : { scale: 0.95 }}
+              onMouseDown={buttonDisabled ? undefined : handlePressStart}
+              onMouseUp={buttonDisabled ? undefined : handlePressEnd}
+              onMouseLeave={buttonDisabled ? undefined : handlePressEnd}
+              onTouchStart={buttonDisabled ? undefined : handlePressStart}
+              onTouchEnd={buttonDisabled ? undefined : handlePressEnd}
+              disabled={buttonDisabled}
+              className={`w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-[16px] font-semibold text-lg shadow-[0_10px_40px_rgba(23,23,23,0.15)] transition-all
+                ${buttonDisabled 
+                  ? 'bg-foreground/10 text-foreground/40 cursor-not-allowed shadow-none' 
+                  : conversationState === "Listening"
+                    ? 'bg-accent-coral text-white'
+                    : 'bg-foreground text-background hover:shadow-[0_10px_40px_rgba(23,23,23,0.25)]'
+                }`}
+            >
+              {buttonIcon}
+              {buttonText}
+            </motion.button>
+
+            <button
+              onClick={endConversation}
+              className="mt-2 flex items-center justify-center gap-2 text-foreground/50 border border-foreground/10 px-4 py-2 rounded-full font-medium text-sm hover:bg-black/5 hover:text-foreground/80 transition-colors"
+            >
+              <PhoneOff size={14} />
+              End Conversation
+            </button>
+          </>
+        )}
+      </motion.div>
+    </>
+  );
+
+  const rightPanel = (
+    <RightPanel 
+      panelState={panelState}
+      setPanelState={setPanelState}
+      messages={messages}
+      conversationState={conversationState}
+    />
+  );
+
+  const historyDrawer = (
+    <HistoryDrawer 
+      isOpen={isHistoryDrawerOpen}
+      onClose={() => setIsHistoryDrawerOpen(false)}
+      onSelectReport={handleSelectHistoryReport}
+    />
+  );
+
+  return (
+    <HomeLayout 
+      leftSidebar={leftSidebar}
+      centerColumn={centerColumn}
+      rightPanel={rightPanel}
+      historyDrawer={historyDrawer}
+      onOpenHistory={() => setIsHistoryDrawerOpen(true)}
+    />
   );
 }
