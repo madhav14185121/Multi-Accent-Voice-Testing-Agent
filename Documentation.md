@@ -99,6 +99,25 @@ https://accent.gmu.edu/browse_language.php?function=find&language=english
 
 ---
 
+<<<<<<< HEAD
+## Date: 2026-07-13
+
+### 11. Real-time Audio Pipeline Refactor & STT Integration
+- **Feature/Change:** Completely refactored the backend audio pipeline to serve as a reusable, modular foundation for all AI services. Replaced mocked transcription with Faster-Whisper.
+- **How it was added:**
+  - **Frontend:** Modified `MediaRecorder` in `page.tsx` to stop/start recording per chunk, ensuring complete, valid WebM blobs are sent over WebSockets. Added UI handling for real-time `transcript` events.
+  - **Backend Core:** Created `AudioProcessor` as a singleton for centralized WebM -> WAV conversion using `FFmpeg`. Created `AudioPipelineContext` to pass normalized WAV paths down the pipeline securely.
+  - **Backend STT:** Stripped conversion logic from `WhisperTranscriber`, making it a pure 16kHz WAV transcription engine. Configured it to use `distil-small.en` with optimized VAD parameters and `condition_on_previous_text=True`.
+  - **Backend Accumulator:** Implemented `ConversationAccumulator` to buffer normalized speech up to a 12s threshold for future AI tasks (like continuous accent detection).
+  - **Backend Orchestration:** Rewrote the `websocket.py` endpoint as a pure orchestrator that manages the context lifecycle without holding business logic, ensuring robust exception handling (`WebSocketDisconnect`). Added structured conversation tracking to `SessionManager`.
+- **File Location:**
+  - Frontend: `frontend/src/app/page.tsx`
+  - Backend Audio Services: `backend/app/services/audio/context.py`, `backend/app/services/audio/processor.py`, `backend/app/services/audio/accumulator.py`, `backend/app/services/audio/buffer.py`, `backend/app/services/audio/__init__.py`
+  - Backend STT: `backend/app/services/stt/transcriber.py`, `backend/app/services/stt/__init__.py`
+  - Backend Socket/Session: `backend/app/api/websocket.py`, `backend/app/services/session/manager.py`
+
+---
+
 ## Date: 2026-07-10
 
 ### 11. Supabase Integration — Storage & Database
@@ -131,3 +150,28 @@ https://accent.gmu.edu/browse_language.php?function=find&language=english
   - **VoiceSelector:** Added a `useRef` on the dropdown container and a `useEffect` with a `mousedown` document listener that closes the dropdown when clicking outside. The listener is only attached while the dropdown is open, and cleaned up on unmount.
 - **File Location:**
   - Frontend: `frontend/src/components/Navbar.tsx`, `frontend/src/components/VoiceSelector.tsx`
+
+---
+
+## Date: 2026-07-14
+
+### 14. Push-to-Talk Architecture & Real-Time Orchestration
+- **Feature/Change:** Transitioned the application from a continuous chunked recording system to a clean, ChatGPT-style Push-to-Talk (PTT) interaction model. Re-architected the main WebSocket loop to process all heavy STT and LLM generation asynchronously in the background.
+- **How it was added:**
+  - **Frontend:** Updated `page.tsx` to handle Push-to-Talk button events (`onMouseDown`, `onMouseUp`). The MediaRecorder now only streams audio while the button is held. Implemented comprehensive UI states for connecting, uploading, thinking, and listening.
+  - **Backend:** Updated `websocket.py` to handle explicit PTT states. Wrapped synchronous, CPU-bound tasks (Faster-Whisper and Llama 3 generation) in `asyncio.to_thread` to ensure the ASGI event loop remains completely unblocked, allowing real-time websocket events to flow seamlessly.
+  - **UI/UX:** Polished the Orb animations in `Orb.tsx` to correctly map `pulse` and `flow` states to "thinking" and "speaking". Enhanced `TelemetryCard.tsx` to elegantly handle missing/detecting states with loading animations.
+- **File Location:** 
+  - Frontend: `frontend/src/app/page.tsx`, `frontend/src/components/Orb.tsx`, `frontend/src/components/TelemetryCard.tsx`
+  - Backend: `backend/app/api/websocket.py`
+
+### 15. How to swap STT or LLM Models in the future
+Because we designed the architecture to be highly modular, swapping out the AI brains is incredibly easy. The main application (`websocket.py`) has no idea how the transcription or text generation happens—it just knows who to ask.
+
+- **If someone wants to use a different STT (e.g., OpenAI API or Deepgram instead of Faster-Whisper):**
+  They only need to edit one single file: `backend/app/services/stt/transcriber.py`.
+  The rest of the app only ever calls `transcriber.transcribe(file_path)`. They can delete all the local faster-whisper code inside that file, replace it with a simple web request to their chosen API, and return the string. The entire rest of the app will instantly work with the new transcription service.
+
+- **If someone wants to use a different LLM (e.g., GPT-4 or Claude instead of Llama 3):**
+  They only need to edit one single file: `backend/app/services/llm/client.py`.
+  The rest of the app only ever calls `llm_client.chat(messages)`. They just need to update that one function to send the list of messages to OpenAI/Anthropic instead of your local Ollama server. Because we separated the system prompts and conversation history into their own managers, swapping the LLM is as simple as updating that single API call.

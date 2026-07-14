@@ -4,6 +4,7 @@ from typing import Optional
 class Settings(BaseSettings):
     app_name: str = "ARIA Backend"
     debug: bool = True
+    ollama_model: str = "llama3:latest"
     
     supabase_url: Optional[str] = None
     supabase_service_role_key: Optional[str] = None

@@ -67,8 +67,8 @@ const createStateMix = (initial: string) => {
 
 const stateMotion = (st: string) => {
   if (st === "listening") return "ripple";
-  if (st === "speaking") return "pulse";
-  if (st === "thinking") return "flow";
+  if (st === "speaking") return "flow";
+  if (st === "thinking") return "pulse";
   return "none";
 };
 
