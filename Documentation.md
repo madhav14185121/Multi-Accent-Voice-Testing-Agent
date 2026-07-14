@@ -114,3 +114,28 @@ https://accent.gmu.edu/browse_language.php?function=find&language=english
   - Backend Audio Services: `backend/app/services/audio/context.py`, `backend/app/services/audio/processor.py`, `backend/app/services/audio/accumulator.py`, `backend/app/services/audio/buffer.py`, `backend/app/services/audio/__init__.py`
   - Backend STT: `backend/app/services/stt/transcriber.py`, `backend/app/services/stt/__init__.py`
   - Backend Socket/Session: `backend/app/api/websocket.py`, `backend/app/services/session/manager.py`
+
+---
+
+## Date: 2026-07-14
+
+### 12. Push-to-Talk Architecture & Real-Time Orchestration
+- **Feature/Change:** Transitioned the application from a continuous chunked recording system to a clean, ChatGPT-style Push-to-Talk (PTT) interaction model. Re-architected the main WebSocket loop to process all heavy STT and LLM generation asynchronously in the background.
+- **How it was added:**
+  - **Frontend:** Updated `page.tsx` to handle Push-to-Talk button events (`onMouseDown`, `onMouseUp`). The MediaRecorder now only streams audio while the button is held. Implemented comprehensive UI states for connecting, uploading, thinking, and listening.
+  - **Backend:** Updated `websocket.py` to handle explicit PTT states. Wrapped synchronous, CPU-bound tasks (Faster-Whisper and Llama 3 generation) in `asyncio.to_thread` to ensure the ASGI event loop remains completely unblocked, allowing real-time websocket events to flow seamlessly.
+  - **UI/UX:** Polished the Orb animations in `Orb.tsx` to correctly map `pulse` and `flow` states to "thinking" and "speaking". Enhanced `TelemetryCard.tsx` to elegantly handle missing/detecting states with loading animations.
+- **File Location:** 
+  - Frontend: `frontend/src/app/page.tsx`, `frontend/src/components/Orb.tsx`, `frontend/src/components/TelemetryCard.tsx`
+  - Backend: `backend/app/api/websocket.py`
+
+### 13. How to swap STT or LLM Models in the future
+Because we designed the architecture to be highly modular, swapping out the AI brains is incredibly easy. The main application (`websocket.py`) has no idea how the transcription or text generation happens—it just knows who to ask.
+
+- **If someone wants to use a different STT (e.g., OpenAI API or Deepgram instead of Faster-Whisper):**
+  They only need to edit one single file: `backend/app/services/stt/transcriber.py`.
+  The rest of the app only ever calls `transcriber.transcribe(file_path)`. They can delete all the local faster-whisper code inside that file, replace it with a simple web request to their chosen API, and return the string. The entire rest of the app will instantly work with the new transcription service.
+
+- **If someone wants to use a different LLM (e.g., GPT-4 or Claude instead of Llama 3):**
+  They only need to edit one single file: `backend/app/services/llm/client.py`.
+  The rest of the app only ever calls `llm_client.chat(messages)`. They just need to update that one function to send the list of messages to OpenAI/Anthropic instead of your local Ollama server. Because we separated the system prompts and conversation history into their own managers, swapping the LLM is as simple as updating that single API call.
