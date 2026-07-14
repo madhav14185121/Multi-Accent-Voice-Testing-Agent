@@ -10,7 +10,6 @@ class Settings(BaseSettings):
     supabase_service_role_key: Optional[str] = None
     supabase_bucket: str = "audio-uploads"
 
-    class Config:
-        env_file = ".env"
+    model_config = {"env_file": ".env"}
 
 settings = Settings()
