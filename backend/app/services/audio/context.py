@@ -37,6 +37,9 @@ class AudioPipelineContext:
     transcript: Optional[str] = None
     transcription_time_ms: Optional[float] = None
 
+    # ── Set by LLM ─────────────────────────────────────────────────────
+    llm_time_ms: Optional[float] = None
+
     # ── Set by future Accent Detection ─────────────────────────────────
     accent: Optional[str] = None
     accent_confidence: Optional[float] = None

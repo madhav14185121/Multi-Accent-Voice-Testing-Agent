@@ -31,6 +31,7 @@ class SessionManager:
         self.sessions[session_id] = {
             "conversation": [],
             "transcript": [],
+            "messages": [],
             "accent": None,
         }
         return session_id
@@ -79,6 +80,25 @@ class SessionManager:
             session["transcript"].append(entry)
 
         return entry
+
+    def add_message(self, session_id: str, role: str, content: str) -> None:
+        """Append a message to the session's LLM context history.
+
+        Stores history in the standard OpenAI format expected by LLMs
+        (e.g., {"role": "user", "content": "..."}). This is completely
+        independent from the UI transcript format.
+
+        Args:
+            session_id: The session identifier.
+            role: "system", "user", or "assistant".
+            content: The text content of the message.
+        """
+        session = self.sessions.get(session_id)
+        if session is not None:
+            session["messages"].append({
+                "role": role,
+                "content": content
+            })
 
     def remove_session(self, session_id: str) -> None:
         """Remove a session and its data.
