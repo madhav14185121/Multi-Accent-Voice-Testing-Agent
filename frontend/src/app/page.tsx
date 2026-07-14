@@ -2,26 +2,28 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, PhoneOff } from "lucide-react";
+import { Mic, PhoneOff, Radio } from "lucide-react";
 
 // Components
 import { Navbar } from "../components/Navbar";
-import { Orb } from "../components/Orb";
+import { Orb, VoiceState } from "../components/Orb";
 import { VoiceSelector } from "../components/VoiceSelector";
 import { AudioUpload } from "../components/AudioUpload";
 import { TelemetryCard } from "../components/TelemetryCard";
 
 type Message = {
   id: number;
-  sender: "User" | "Aria";
+  role: "user" | "assistant";
   text: string;
 };
 
-type Status = "Ready" | "Connecting..." | "Listening..." | "Detecting Accent..." | "Thinking..." | "Speaking..." | "Conversation Complete";
+type ConnectionState = "Disconnected" | "Connecting" | "Connected";
+type ConversationState = "Idle" | "Listening" | "Uploading..." | "Thinking" | "Speaking";
 
 export default function Home() {
-  const [isRecording, setIsRecording] = useState(false);
-  const [status, setStatus] = useState<Status>("Ready");
+  const [connectionState, setConnectionState] = useState<ConnectionState>("Disconnected");
+  const [conversationState, setConversationState] = useState<ConversationState>("Idle");
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [volume, setVolume] = useState(0);
   const [time, setTime] = useState(0);
@@ -37,9 +39,9 @@ export default function Home() {
   const wsRef = useRef<WebSocket | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
-  // Timer logic for conversation
+  // Timer logic for conversation duration (only when connected)
   useEffect(() => {
-    if (isRecording) {
+    if (connectionState === "Connected") {
       timerRef.current = setInterval(() => {
         setTime((prev) => prev + 1);
       }, 1000);
@@ -49,7 +51,7 @@ export default function Home() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isRecording]);
+  }, [connectionState]);
 
   const startConversation = useCallback(async () => {
     try {
@@ -64,10 +66,12 @@ export default function Home() {
       const source = audioContextRef.current.createMediaStreamSource(stream);
       source.connect(analyserRef.current);
 
-      setIsRecording(true);
-      setStatus("Connecting...");
+      setConnectionState("Connecting");
+      setConversationState("Idle");
       setTime(0);
-      setMessages([{ id: Date.now(), sender: "Aria", text: "Hi there! Connecting to server..." }]);
+      setDetectedAccent(null);
+      setDetectedConfidence(null);
+      setMessages([{ id: Date.now(), role: "assistant", text: "Hi there! Connecting to server..." }]);
 
       const animateVolume = () => {
         if (!analyserRef.current) return;
@@ -77,7 +81,8 @@ export default function Home() {
         const sum = dataArray.reduce((a, b) => a + b, 0);
         const avg = sum / dataArray.length;
         
-        setVolume(avg / 255);
+        // Only show volume when actually listening
+        setVolume(mediaRecorderRef.current?.state === "recording" ? avg / 255 : 0);
         animationFrameRef.current = requestAnimationFrame(animateVolume);
       };
       
@@ -90,7 +95,7 @@ export default function Home() {
       ws.onopen = () => {
         console.log("WebSocket connected");
         
-        // Start MediaRecorder — no timeslice, so stop() gives one complete WebM blob
+        // Create MediaRecorder once per session
         const mediaRecorder = new MediaRecorder(stream, {
           mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
             ? 'audio/webm;codecs=opus'
@@ -105,29 +110,6 @@ export default function Home() {
             console.log(`Sent complete WebM blob: ${arrayBuffer.byteLength} bytes`);
           }
         };
-
-        mediaRecorder.onstop = () => {
-          // Restart recording for the next segment (unless we're ending)
-          if (ws.readyState === WebSocket.OPEN && mediaRecorderRef.current) {
-            try {
-              mediaRecorder.start();
-            } catch (_) {
-              // stream may have been stopped
-            }
-          }
-        };
-
-        // Every 5 seconds, stop the recorder to flush a complete WebM blob
-        const sendInterval = setInterval(() => {
-          if (mediaRecorder.state === "recording") {
-            mediaRecorder.stop(); // triggers ondataavailable then onstop
-          }
-        }, 5000);
-
-        // Store the interval so we can clean it up
-        (wsRef.current as any).__sendInterval = sendInterval;
-
-        mediaRecorder.start(); // no timeslice — continuous recording
       };
 
       ws.onmessage = (event) => {
@@ -135,29 +117,28 @@ export default function Home() {
           const data = JSON.parse(event.data);
           
           if (data.event === "connected") {
-            // Transition to listening after a short delay
-            setTimeout(() => {
-              setStatus("Listening...");
-              setMessages(prev => [...prev, { id: Date.now(), sender: "Aria", text: "I'm listening. How can I help you today?" }]);
-            }, 1000);
+            setConnectionState("Connected");
+            setConversationState("Idle");
+            setMessages([{ id: Date.now(), role: "assistant", text: "I'm connected. Hold the button to talk." }]);
           } else if (data.event === "listening") {
-            setStatus("Listening...");
+            setConversationState("Listening");
           } else if (data.event === "thinking") {
-            setStatus("Thinking...");
+            setConversationState("Thinking");
           } else if (data.event === "speaking") {
-            setStatus("Speaking...");
+            setConversationState("Speaking");
+          } else if (data.event === "idle") {
+            setConversationState("Idle");
           } else if (data.event === "error") {
-            setStatus("Ready");
-          } else if (data.event === "assistant_text") {
-            setMessages(prev => [...prev, { id: Date.now(), sender: "Aria", text: data.message }]);
+            console.error("Backend error:", data.message);
+          } else if (data.event === "assistant_message") {
+            setMessages(prev => [...prev, { id: Date.now(), role: "assistant", text: data.text }]);
           } else if (data.event === "transcript") {
-            // User speech transcription from backend
             if (data.text) {
-              setMessages(prev => [...prev, { id: Date.now(), sender: "User", text: data.text }]);
-              setStatus("Listening...");
+              setMessages(prev => [...prev, { id: Date.now(), role: "user", text: data.text }]);
             }
-          } else if (data.event === "ack") {
-            console.log("Backend Ack:", data.message);
+          } else if (data.event === "telemetry") {
+            setDetectedAccent(data.accent);
+            setDetectedConfidence(data.confidence);
           }
         } catch (e) {
           console.error("Error parsing WebSocket message", e);
@@ -166,7 +147,7 @@ export default function Home() {
 
       ws.onclose = () => {
         console.log("WebSocket closed");
-        if (isRecording) {
+        if (wsRef.current) {
           endConversation();
         }
       };
@@ -183,15 +164,12 @@ export default function Home() {
 
   const endConversation = useCallback(() => {
     if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-    if (mediaRecorderRef.current) {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
-      mediaRecorderRef.current = null;
     }
+    mediaRecorderRef.current = null;
+    
     if (wsRef.current) {
-      // Clean up the send interval
-      if ((wsRef.current as any).__sendInterval) {
-        clearInterval((wsRef.current as any).__sendInterval);
-      }
       wsRef.current.close();
       wsRef.current = null;
     }
@@ -202,10 +180,97 @@ export default function Home() {
       audioContextRef.current.close();
     }
     
-    setIsRecording(false);
-    setStatus("Conversation Complete");
+    setConnectionState("Disconnected");
+    setConversationState("Idle");
     setVolume(0);
   }, []);
+
+  const handlePressStart = (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    if (conversationState === "Uploading..." || conversationState === "Thinking") {
+      return; // Disabled during processing
+    }
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && mediaRecorderRef.current) {
+      try {
+        wsRef.current.send(JSON.stringify({ action: "start_listening" }));
+        mediaRecorderRef.current.start();
+        setConversationState("Listening"); // Optimistic update, backend also emits it
+      } catch (err) {
+        console.error("Failed to start recording:", err);
+      }
+    }
+  };
+
+  const handlePressEnd = (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      try {
+        mediaRecorderRef.current.stop();
+        setConversationState("Uploading...");
+      } catch (err) {
+        console.error("Failed to stop recording:", err);
+      }
+    }
+  };
+
+  // Determine Orb State
+  let orbState: VoiceState = "idle";
+  if (connectionState === "Connecting") {
+    orbState = "connecting";
+  } else if (connectionState === "Connected") {
+    if (conversationState === "Listening") orbState = "listening";
+    else if (conversationState === "Uploading..." || conversationState === "Thinking") orbState = "thinking";
+    else if (conversationState === "Speaking") orbState = "speaking";
+  }
+
+  // Determine Telemetry Props
+  let displayAccent = "N/A";
+  let displayConfidence: number | null = null;
+  let isDetecting = false;
+
+  if (connectionState === "Disconnected") {
+    if (time === 0 && !detectedAccent) {
+      displayAccent = "N/A";
+    } else if (detectedAccent) {
+      displayAccent = detectedAccent;
+      displayConfidence = detectedConfidence;
+    } else {
+      displayAccent = "Insufficient conversation";
+    }
+  } else {
+    if (detectedAccent) {
+      displayAccent = detectedAccent;
+      displayConfidence = detectedConfidence;
+    } else {
+      displayAccent = "Detecting...";
+      isDetecting = true;
+    }
+  }
+
+  // Determine Button Text & Props
+  let buttonText = "Connect to Aria";
+  let buttonDisabled = false;
+  let buttonIcon = <Radio size={20} />;
+
+  if (connectionState === "Connecting") {
+    buttonText = "Connecting...";
+    buttonDisabled = true;
+  } else if (connectionState === "Connected") {
+    if (conversationState === "Uploading...") {
+      buttonText = "Sending...";
+      buttonDisabled = true;
+    } else if (conversationState === "Thinking") {
+      buttonText = "ARIA is thinking...";
+      buttonDisabled = true;
+    } else if (conversationState === "Listening") {
+      buttonText = "Release to Send";
+      buttonIcon = <Mic size={20} className="animate-pulse" />;
+    } else {
+      // Idle or Speaking (Speaking allows interrupt, so button is active)
+      buttonText = "Hold to Talk";
+      buttonIcon = <Mic size={20} />;
+    }
+  }
 
   return (
     <div className="min-h-screen relative flex flex-col items-center overflow-x-hidden">
@@ -232,7 +297,7 @@ export default function Home() {
         {/* 3-Column Layout */}
         <div className="flex flex-col xl:flex-row items-center xl:items-start justify-center gap-12 xl:gap-16 w-full">
           
-          {/* Left Sidebar (Order 2 on mobile, 1 on desktop) */}
+          {/* Left Sidebar */}
           <motion.div 
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
@@ -247,15 +312,10 @@ export default function Home() {
             }} />
           </motion.div>
 
-          {/* Center Column: Orb & Controls (Order 1 on mobile, 2 on desktop) */}
+          {/* Center Column: Orb & Controls */}
           <div className="flex flex-col items-center flex-1 w-full max-w-[600px] order-1 xl:order-2">
             <Orb 
-              state={
-                status === "Connecting..." ? "connecting" :
-                status === "Listening..." ? "listening" :
-                (status === "Detecting Accent..." || status === "Thinking...") ? "thinking" :
-                status === "Speaking..." ? "speaking" : "idle"
-              } 
+              state={orbState} 
               audioLevel={volume} 
               hoverStrength={1}
             />
@@ -264,15 +324,15 @@ export default function Home() {
             <div className="h-8 flex items-center justify-center mb-8">
               <AnimatePresence mode="wait">
                 <motion.div
-                  key={status}
+                  key={conversationState === "Idle" ? connectionState : conversationState}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.3 }}
                   className="flex items-center gap-3 text-foreground/60 font-medium"
                 >
-                  <div className={`w-2 h-2 rounded-full ${isRecording ? 'bg-accent-coral animate-pulse' : 'bg-accent-purple'}`} />
-                  {status}
+                  <div className={`w-2 h-2 rounded-full ${conversationState === "Listening" ? 'bg-accent-coral animate-pulse' : 'bg-accent-purple'}`} />
+                  {connectionState === "Connected" ? conversationState : connectionState}
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -282,28 +342,49 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
-              className="flex flex-wrap items-center justify-center gap-4 mb-16 w-full"
+              className="flex flex-col items-center justify-center gap-4 mb-16 w-full select-none"
             >
-              {!isRecording ? (
+              {connectionState === "Disconnected" ? (
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={startConversation}
                   className="w-full sm:w-auto flex items-center justify-center gap-2 bg-foreground text-background px-8 py-4 rounded-[16px] font-semibold text-lg shadow-[0_10px_40px_rgba(23,23,23,0.15)] transition-shadow hover:shadow-[0_10px_40px_rgba(23,23,23,0.25)]"
                 >
-                  <Mic size={20} />
-                  Start Conversation
+                  <Radio size={20} />
+                  Connect to Aria
                 </motion.button>
               ) : (
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={endConversation}
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white text-foreground border border-black/10 px-8 py-4 rounded-[16px] font-semibold text-lg shadow-lg hover:bg-black/5 transition-colors"
-                >
-                  <PhoneOff size={20} />
-                  End Conversation
-                </motion.button>
+                <>
+                  <motion.button
+                    whileHover={buttonDisabled ? {} : { scale: 1.05 }}
+                    whileTap={buttonDisabled ? {} : { scale: 0.95 }}
+                    onMouseDown={buttonDisabled ? undefined : handlePressStart}
+                    onMouseUp={buttonDisabled ? undefined : handlePressEnd}
+                    onMouseLeave={buttonDisabled ? undefined : handlePressEnd}
+                    onTouchStart={buttonDisabled ? undefined : handlePressStart}
+                    onTouchEnd={buttonDisabled ? undefined : handlePressEnd}
+                    disabled={buttonDisabled}
+                    className={`w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 rounded-[16px] font-semibold text-lg shadow-[0_10px_40px_rgba(23,23,23,0.15)] transition-all
+                      ${buttonDisabled 
+                        ? 'bg-foreground/10 text-foreground/40 cursor-not-allowed shadow-none' 
+                        : conversationState === "Listening"
+                          ? 'bg-accent-coral text-white'
+                          : 'bg-foreground text-background hover:shadow-[0_10px_40px_rgba(23,23,23,0.25)]'
+                      }`}
+                  >
+                    {buttonIcon}
+                    {buttonText}
+                  </motion.button>
+
+                  <button
+                    onClick={endConversation}
+                    className="mt-2 flex items-center justify-center gap-2 text-foreground/50 border border-foreground/10 px-4 py-2 rounded-full font-medium text-sm hover:bg-black/5 hover:text-foreground/80 transition-colors"
+                  >
+                    <PhoneOff size={14} />
+                    End Conversation
+                  </button>
+                </>
               )}
             </motion.div>
 
@@ -321,11 +402,11 @@ export default function Home() {
                         key={msg.id}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className={`flex w-full ${msg.sender === "User" ? "justify-end" : "justify-start"}`}
+                        className={`flex w-full ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                       >
                         <div 
                           className={`max-w-[85%] px-5 py-3 rounded-2xl text-[15px] font-medium leading-relaxed
-                            ${msg.sender === "User" 
+                            ${msg.role === "user" 
                               ? "bg-black/5 text-foreground rounded-br-sm" 
                               : "bg-accent-purple/10 text-accent-purple rounded-bl-sm"
                             }`}
@@ -340,7 +421,7 @@ export default function Home() {
             )}
           </div>
 
-          {/* Right Sidebar: Telemetry (Order 3 on all) */}
+          {/* Right Sidebar: Telemetry */}
           <motion.div
             initial={{ opacity: 0, x: 30 }}
             animate={{ opacity: 1, x: 0 }}
@@ -348,9 +429,10 @@ export default function Home() {
             className="flex flex-col items-center xl:items-start w-full max-w-[240px] order-3 xl:order-3"
           >
             <TelemetryCard 
-              accent={detectedAccent ?? selectedVoice} 
-              confidence={detectedConfidence ?? 0} 
+              accent={displayAccent} 
+              confidence={displayConfidence} 
               time={time} 
+              isDetecting={isDetecting}
             />
           </motion.div>
 
