@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, FileAudio, Clock, Loader2, Inbox, ArrowRight } from "lucide-react";
+import { X, FileAudio, Calendar, Clock, ChevronRight, Loader2, Inbox, ArrowRight } from "lucide-react";
 import { ReportDetail } from "../types";
+import { fetchHistory as fetchHistoryApi, fetchReport as fetchReportApi } from "../lib/api";
 
 interface HistoryDrawerProps {
   isOpen: boolean;
@@ -30,8 +31,7 @@ export const HistoryDrawer = React.memo(function HistoryDrawer({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("http://localhost:8000/api/history");
-      const data = await res.json();
+      const data = await fetchHistoryApi();
       if (data.success) {
         setReports(data.reports);
       } else {
@@ -46,13 +46,10 @@ export const HistoryDrawer = React.memo(function HistoryDrawer({
 
   const fetchReportDetails = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/history/${id}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          onSelectReport(data.report);
-          onClose();
-        }
+      const data = await fetchReportApi(id);
+      if (data.success) {
+        onSelectReport(data.report);
+        onClose();
       }
     } catch {
       console.error("Failed to load full report details");

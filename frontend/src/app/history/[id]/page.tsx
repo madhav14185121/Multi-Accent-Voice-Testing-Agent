@@ -4,10 +4,11 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Navbar } from "@/components/Navbar";
-import { ArrowLeft, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Loader2, Calendar, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { ReportView } from "@/components/ReportView";
 import { ReportDetail } from "@/types";
+import { fetchReport as fetchReportApi } from "@/lib/api";
 
 export default function ReportDetailPage() {
   const params = useParams();
@@ -20,12 +21,7 @@ export default function ReportDetailPage() {
   useEffect(() => {
     async function fetchReport() {
       try {
-        const res = await fetch(`http://localhost:8000/api/history/${reportId}`);
-        if (res.status === 404) {
-          setError("Report not found.");
-          return;
-        }
-        const data = await res.json();
+        const data = await fetchReportApi(reportId);
         if (data.success) {
           setReport(data.report);
         } else {

@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Navbar } from "@/components/Navbar";
 import { Clock, FileAudio, ArrowRight, Loader2, Inbox } from "lucide-react";
 import Link from "next/link";
+import { fetchHistory as fetchHistoryApi } from "@/lib/api";
 
 interface Report {
   id: string;
@@ -23,8 +24,7 @@ export default function HistoryPage() {
   useEffect(() => {
     async function fetchHistory() {
       try {
-        const res = await fetch("http://localhost:8000/api/history");
-        const data = await res.json();
+        const data = await fetchHistoryApi();
         if (data.success) {
           setReports(data.reports);
         } else {

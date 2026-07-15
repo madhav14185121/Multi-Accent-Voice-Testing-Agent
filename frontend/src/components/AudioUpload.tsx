@@ -4,6 +4,7 @@ import React, { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { UploadCloud, FileAudio, PlayCircle, Loader2 } from "lucide-react";
 import { ReportDetail } from "../types";
+import { API_BASE } from "../lib/api";
 
 export const AudioUpload = React.memo(function AudioUpload({ 
   onDetected,
@@ -72,7 +73,7 @@ export const AudioUpload = React.memo(function AudioUpload({
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch("http://localhost:8000/api/upload", {
+      const response = await fetch(`${API_BASE}/api/upload`, {
         method: "POST",
         body: formData,
       });

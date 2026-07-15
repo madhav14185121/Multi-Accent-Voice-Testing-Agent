@@ -8,8 +8,10 @@ import { HomeLayout } from "../components/HomeLayout";
 import { ControlSidebar } from "../components/ControlSidebar";
 import { RightPanel } from "../components/RightPanel";
 import { HistoryDrawer } from "../components/HistoryDrawer";
+
 import { Orb, VoiceState } from "../components/Orb";
 import { Message, PanelState, ReportDetail } from "../types";
+import { WS_BASE } from "../lib/api";
 
 type ConnectionState = "Disconnected" | "Connecting" | "Connected";
 type ConversationState = "Idle" | "Listening" | "Uploading..." | "Thinking" | "Speaking";
@@ -86,7 +88,7 @@ export default function Home() {
       animateVolume();
 
       // Initialize WebSocket connection
-      const ws = new WebSocket("ws://localhost:8000/ws/audio");
+      const ws = new WebSocket(`${WS_BASE}/ws/audio`);
       wsRef.current = ws;
 
       ws.onopen = () => {
