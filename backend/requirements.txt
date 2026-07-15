@@ -18,3 +18,5 @@ ollama
 supabase
 python-dotenv
 loguru
+
+TTS==0.22.0

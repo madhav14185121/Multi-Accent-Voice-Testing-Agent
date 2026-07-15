@@ -18,3 +18,17 @@ export async function fetchReport(id: string) {
   }
   return res.json();
 }
+
+export async function postTts(text: string, voice?: string, accent?: string) {
+  const res = await fetch(`${API_BASE}/api/tts`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ text, voice, accent }),
+  });
+  if (!res.ok) {
+    throw new Error("Failed to synthesize speech");
+  }
+  return res.json();
+}

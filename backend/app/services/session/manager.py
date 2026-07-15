@@ -33,6 +33,7 @@ class SessionManager:
             "transcript": [],
             "messages": [],
             "accent": None,
+            "voice": None,
         }
         return session_id
 
@@ -99,6 +100,18 @@ class SessionManager:
                 "role": role,
                 "content": content
             })
+
+    def set_voice(self, session_id: str, voice: Optional[str]) -> None:
+        """Store the user's selected TTS voice for this session."""
+        session = self.sessions.get(session_id)
+        if session is not None:
+            session["voice"] = voice
+
+    def set_accent(self, session_id: str, accent: Optional[str]) -> None:
+        """Store the detected accent for this session."""
+        session = self.sessions.get(session_id)
+        if session is not None:
+            session["accent"] = accent
 
     def remove_session(self, session_id: str) -> None:
         """Remove a session and its data.

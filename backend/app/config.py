@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     supabase_service_role_key: Optional[str] = None
     supabase_bucket: str = "audio-uploads"
 
-    model_config = {"env_file": ".env"}
+    tts_default_voice: str = "Indian English"
+    tts_language: str = "en"
+    tts_device: Optional[str] = None  # None = auto-detect
 
+    model_config = {"env_file": ".env", "extra": "ignore"}
 settings = Settings()
