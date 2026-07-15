@@ -33,7 +33,7 @@ export const Navbar = React.memo(function Navbar({ onOpenHistory }: NavbarProps)
         </a>
         <button 
           onClick={onOpenHistory}
-          className="hover:text-accent-purple transition-colors flex items-center gap-2 focus:outline-none"
+          className="cursor-pointer hover:text-accent-purple transition-colors flex items-center gap-2 focus:outline-none"
         >
           <Clock size={16} /> History
         </button>
