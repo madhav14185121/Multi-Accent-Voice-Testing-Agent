@@ -19,4 +19,4 @@ supabase
 python-dotenv
 loguru
 
-TTS==0.22.0
+f5-tts
