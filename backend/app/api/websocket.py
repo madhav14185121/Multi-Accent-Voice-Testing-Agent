@@ -20,7 +20,7 @@ from app.services.stt.transcriber import transcriber
 from app.services.audio import audio_processor, ConversationAccumulator
 from app.services.llm import llm_client, build_system_prompt
 from app.services.accent.detector import accent_detector
-from app.services.tts import xtts_service, resolve_voice_path
+from app.services.tts import tts_service, resolve_voice_path
 from app.config import settings
 
 router = APIRouter()
@@ -196,7 +196,7 @@ async def websocket_audio(websocket: WebSocket) -> None:
                             
                             # Synthesize
                             wav_bytes, sample_rate = await asyncio.to_thread(
-                                xtts_service.synthesize, reply, path, settings.tts_language
+                                tts_service.synthesize, reply, path, settings.tts_language
                             )
                             duration_ms = int(len(wav_bytes) / (sample_rate * 2) * 1000) # approximate
                             

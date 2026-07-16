@@ -7,7 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app.services.tts import xtts_service, resolve_voice_path
+from app.services.tts import tts_service, resolve_voice_path
 from app.config import settings
 
 router = APIRouter()
@@ -24,7 +24,7 @@ async def synthesize_speech(req: TTSRequest):
         path = resolve_voice_path(voice=req.voice, accent=req.accent, default=settings.tts_default_voice)
         
         wav_bytes, sample_rate = await asyncio.to_thread(
-            xtts_service.synthesize, req.text, path, settings.tts_language
+            tts_service.synthesize, req.text, path, settings.tts_language
         )
         
         # Compute duration using wave module
