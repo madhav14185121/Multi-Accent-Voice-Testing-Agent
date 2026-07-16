@@ -1,0 +1,16 @@
+# Troubleshooting Guidelines for F5-TTS and TorchCodec on Windows
+
+If you are setting up or developing with this project, please keep the following critical guidelines in mind to avoid common pitfalls with TTS generation.
+
+## 1. FFmpeg Shared DLLs and TorchCodec
+The `torchcodec` library (which is a dependency for `f5-tts`) requires the **shared** version of FFmpeg to be installed on Windows. 
+- Static builds of FFmpeg will not work. You need the builds that include `.dll` files (like `avcodec-*.dll`, `avutil-*.dll`).
+- If you install FFmpeg using Winget (e.g., `winget install Gyan.FFmpeg.Shared`), Python 3.8+ **does not automatically search the system PATH** for these DLLs. 
+- **Fix:** You must explicitly locate the FFmpeg bin folder and inject it into Python's secure DLL search path using `os.add_dll_directory("path/to/ffmpeg/bin")` before importing `f5_tts`. (This has already been implemented in `f5_provider.py`).
+
+## 2. F5-TTS "Hanging" or "Stuck at 0%" on CPU
+F5-TTS uses a massive Diffusion Transformer (DiT) model to generate audio. 
+- By default, PyTorch will fall back to running on the CPU if a CUDA-enabled NVIDIA GPU is not available (`torch.cuda.is_available() == False`).
+- The default inference process uses 32 integration steps (`nfe_step=32`). On a standard CPU, running a heavy transformer 32 times can take **2 to 5 minutes** to generate a single response. This often looks like the process has completely frozen or crashed.
+- **Fix:** If running on a CPU, you can significantly reduce generation time by lowering the `nfe_step` parameter (e.g., to 16 or 8). This cuts the processing time proportionally, though there is a slight tradeoff in audio quality. (This optimization is active in `f5_provider.py`). 
+- **Recommendation:** For true real-time performance, running the backend on a machine with a dedicated GPU and the CUDA version of PyTorch is highly recommended.
