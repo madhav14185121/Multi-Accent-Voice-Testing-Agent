@@ -12,6 +12,7 @@ import { HistoryDrawer } from "../components/HistoryDrawer";
 import { Orb, VoiceState } from "../components/Orb";
 import { Message, PanelState, ReportDetail } from "../types";
 import { WS_BASE } from "../lib/api";
+import { playBase64Wav } from "../lib/audio";
 
 type ConnectionState = "Disconnected" | "Connecting" | "Connected";
 type ConversationState = "Idle" | "Listening" | "Uploading..." | "Thinking" | "Speaking";
@@ -136,6 +137,19 @@ export default function Home() {
           } else if (data.event === "telemetry") {
             setDetectedAccent(data.accent);
             setDetectedConfidence(data.confidence);
+          } else if (data.event === "aria_speech") {
+            setConversationState("Speaking");
+            playBase64Wav(data.audio_base64, data.mime_type).then(audio => {
+              audio.addEventListener("ended", () => {
+                wsRef.current?.send(JSON.stringify({ action: "playback_done" }));
+              }, { once: true });
+              audio.addEventListener("error", () => {
+                wsRef.current?.send(JSON.stringify({ action: "playback_done" }));
+              }, { once: true });
+            }).catch(err => {
+              console.error("Audio playback failed:", err);
+              wsRef.current?.send(JSON.stringify({ action: "playback_done" }));
+            });
           }
         } catch (e) {
           console.error("Error parsing WebSocket message", e);
@@ -189,7 +203,7 @@ export default function Home() {
     }
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && mediaRecorderRef.current) {
       try {
-        wsRef.current.send(JSON.stringify({ action: "start_listening" }));
+        wsRef.current.send(JSON.stringify({ action: "start_listening", voice: selectedVoice }));
         mediaRecorderRef.current.start();
         setConversationState("Listening"); 
       } catch (err) {

@@ -10,6 +10,7 @@ import logging
 import time
 import json
 import asyncio
+import base64
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -19,12 +20,14 @@ from app.services.stt.transcriber import transcriber
 from app.services.audio import audio_processor, ConversationAccumulator
 from app.services.llm import llm_client, build_system_prompt
 from app.services.accent.detector import accent_detector
+from app.services.tts import tts_service, resolve_voice_path
+from app.config import settings
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-async def run_accent_detection(audio_bytes: bytes, websocket: WebSocket) -> None:
+async def run_accent_detection(audio_bytes: bytes, websocket: WebSocket, session_id: str) -> None:
     """Run accent detection in a background thread and emit telemetry event."""
     try:
         # Run detection in executor to avoid blocking async loop
@@ -39,6 +42,11 @@ async def run_accent_detection(audio_bytes: bytes, websocket: WebSocket) -> None
             "confidence": result["confidence"],
             "duration": result["duration_seconds"]
         })
+        
+        # Update session with new accent and system prompt
+        session_manager.set_accent(session_id, result["accent"])
+        session_manager.add_message(session_id, "system", build_system_prompt(result["accent"]))
+        
     except Exception as e:
         logger.error(f"Background accent detection failed: {e}", exc_info=True)
 
@@ -86,7 +94,12 @@ async def websocket_audio(websocket: WebSocket) -> None:
                     data = json.loads(text_data)
                     if data.get("action") == "start_listening":
                         logger.info("Client started listening.")
+                        voice = data.get("voice")
+                        if voice:
+                            session_manager.set_voice(session_id, voice)
                         await websocket.send_json({"event": "listening"})
+                    elif data.get("action") == "playback_done":
+                        await websocket.send_json({"event": "idle"})
                 except json.JSONDecodeError:
                     pass
                 continue
@@ -121,7 +134,7 @@ async def websocket_audio(websocket: WebSocket) -> None:
                             # Launch detection without blocking
                             audio_bytes_accum = accumulator.get_combined_wav_bytes()
                             if audio_bytes_accum:
-                                asyncio.create_task(run_accent_detection(audio_bytes_accum, websocket))
+                                asyncio.create_task(run_accent_detection(audio_bytes_accum, websocket, session_id))
                                 # Reset accumulator to collect next batch
                                 accumulator.reset()
 
@@ -171,9 +184,35 @@ async def websocket_audio(websocket: WebSocket) -> None:
                             "timestamp": datetime.now(timezone.utc).isoformat(),
                         })
                         
-                        # Emit idle state directly after processing complete
-                        await websocket.send_json({"event": "idle"})
-
+                        # TTS Synthesis
+                        try:
+                            # Use stored voice and accent
+                            session = session_manager.get_session(session_id)
+                            voice = session.get("voice")
+                            accent = session.get("accent")
+                            
+                            # Resolve reference wav path
+                            path = resolve_voice_path(voice=voice, accent=accent, default=settings.tts_default_voice)
+                            
+                            # Synthesize
+                            wav_bytes, sample_rate = await asyncio.to_thread(
+                                tts_service.synthesize, reply, path, settings.tts_language
+                            )
+                            duration_ms = int(len(wav_bytes) / (sample_rate * 2) * 1000) # approximate
+                            
+                            await websocket.send_json({"event": "speaking"})
+                            await websocket.send_json({
+                                "event": "aria_speech",
+                                "audio_base64": base64.b64encode(wav_bytes).decode("utf-8"),
+                                "mime_type": "audio/wav",
+                                "sample_rate": sample_rate,
+                                "duration_ms": duration_ms,
+                                "voice_used": path
+                            })
+                        except Exception as e:
+                            logger.error(f"TTS synthesis failed: {e}")
+                            await websocket.send_json({"event": "idle"})
+                        
                     else:
                         logger.info("Transcription returned empty text (silence or noise).")
                         await websocket.send_json({"event": "idle"})

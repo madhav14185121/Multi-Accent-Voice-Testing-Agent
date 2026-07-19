@@ -18,3 +18,5 @@ ollama
 supabase
 python-dotenv
 loguru
+
+f5-tts

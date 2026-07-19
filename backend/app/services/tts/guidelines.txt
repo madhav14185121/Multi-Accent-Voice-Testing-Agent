@@ -1,0 +1,22 @@
+# Troubleshooting Guidelines for F5-TTS and TorchCodec on Windows
+
+If you are setting up or developing with this project, please keep the following critical guidelines in mind to avoid common pitfalls with TTS generation.
+
+## 1. FFmpeg Shared DLLs and TorchCodec ("Could not load libtorchcodec" Error)
+The `torchcodec` library (which is a dependency for `f5-tts`) requires the **shared** version of FFmpeg to be installed on Windows. 
+- Static builds of FFmpeg will not work. You need the builds that include `.dll` files (like `avcodec-*.dll`, `avutil-*.dll`).
+
+**Common Issue:** If you see the error `ERROR:app.api.upload:Error processing audio upload: Could not load libtorchcodec`, it means TorchCodec cannot find the required `.dll` files.
+- **Cause 1 - Static Version Installed:** If you installed FFmpeg via Winget using `winget install Gyan.FFmpeg`, it installs the static version by default which lacks the required DLLs. 
+  - **Fix:** Uninstall the static version (`winget uninstall Gyan.FFmpeg`) and install the shared version (`winget install Gyan.FFmpeg.Shared`).
+- **Cause 2 - Stale Terminal Environment:** If you recently installed the shared version but your terminal was already open, it will not have the updated `PATH` variable containing the new DLL locations.
+  - **Fix:** Stop your backend (`Ctrl+C`), completely close the terminal window, open a **new terminal**, and restart the backend.
+- **Cause 3 - Python 3.8+ DLL Loading Security:** Python 3.8+ does not automatically search the system PATH for DLLs. 
+  - **Fix:** You must explicitly locate the FFmpeg bin folder and inject it into Python's secure DLL search path using `os.add_dll_directory("path/to/ffmpeg/bin")` before importing `f5_tts`. (This has already been implemented in `f5_provider.py`).
+
+## 2. F5-TTS "Hanging" or "Stuck at 0%" on CPU
+F5-TTS uses a massive Diffusion Transformer (DiT) model to generate audio. 
+- By default, PyTorch will fall back to running on the CPU if a CUDA-enabled NVIDIA GPU is not available (`torch.cuda.is_available() == False`).
+- The default inference process uses 32 integration steps (`nfe_step=32`). On a standard CPU, running a heavy transformer 32 times can take **2 to 5 minutes** to generate a single response. This often looks like the process has completely frozen or crashed.
+- **Fix:** If running on a CPU, you can significantly reduce generation time by lowering the `nfe_step` parameter (e.g., to 16 or 8). This cuts the processing time proportionally, though there is a slight tradeoff in audio quality. (This optimization is active in `f5_provider.py`). 
+- **Recommendation:** For true real-time performance, running the backend on a machine with a dedicated GPU and the CUDA version of PyTorch is highly recommended.
