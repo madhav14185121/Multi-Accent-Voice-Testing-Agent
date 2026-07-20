@@ -47,16 +47,16 @@ export const HomeLayout = React.memo(function HomeLayout({
       <div
         className="flex-1 min-h-0 w-full max-w-[1700px] mx-auto grid gap-6 px-8 pb-6"
         style={{
-          gridTemplateColumns: "320px minmax(0, 1fr) 560px",
+          gridTemplateColumns: "460px minmax(0, 1fr) 460px",
         }}
       >
         {/* ── Left column: vertically CENTERED ─────────────────── */}
-        <div className="h-full min-h-0 flex flex-col justify-center items-stretch">
+        <div className="h-full min-h-0 flex flex-col justify-center items-start w-full max-w-[320px]">
           {leftSidebar}
         </div>
 
         {/* ── Center column: hero + orb + controls ─────────────── */}
-        <div className="h-full min-h-0 flex flex-col items-center justify-start pt-2 relative translate-x-[120px]">
+        <div className="h-full min-h-0 flex flex-col items-center justify-start pt-2 relative">
           {/* Hero heading */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -80,7 +80,7 @@ export const HomeLayout = React.memo(function HomeLayout({
         </div>
 
         {/* ── Right column: fills full column height, no outer scroll ── */}
-        <div className="h-full min-h-0 flex flex-col pl-24">
+        <div className="h-full min-h-0 flex flex-col w-full">
           {rightPanel}
         </div>
       </div>
