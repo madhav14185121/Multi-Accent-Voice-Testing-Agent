@@ -13,6 +13,7 @@ import { Orb, VoiceState } from "../components/Orb";
 import { Message, PanelState, ReportDetail } from "../types";
 import { WS_BASE } from "../lib/api";
 import { playBase64Wav } from "../lib/audio";
+import { usePipelineState } from "../hooks/usePipelineState";
 
 type ConnectionState = "Disconnected" | "Connecting" | "Connected";
 type ConversationState = "Idle" | "Listening" | "Uploading..." | "Thinking" | "Speaking";
@@ -25,11 +26,17 @@ export default function Home() {
   const [volume, setVolume] = useState(0);
   const [time, setTime] = useState(0);
   const [selectedVoice, setSelectedVoice] = useState("Indian English");
-  const [detectedAccent, setDetectedAccent] = useState<string | null>(null);
-  const [detectedConfidence, setDetectedConfidence] = useState<number | null>(null);
   
   const [panelState, setPanelState] = useState<PanelState>({ view: "conversation" });
   const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
+  
+  const {
+    pipeline,
+    accumulator,
+    accent,
+    handleEvent: handlePipelineEvent,
+    resetAll: resetPipelineState,
+  } = usePipelineState();
   
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -69,8 +76,6 @@ export default function Home() {
       setConnectionState("Connecting");
       setConversationState("Idle");
       setTime(0);
-      setDetectedAccent(null);
-      setDetectedConfidence(null);
       setMessages([{ id: Date.now(), role: "assistant", text: "Hi there! Connecting to server..." }]);
       setPanelState({ view: "conversation" });
 
@@ -113,6 +118,7 @@ export default function Home() {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          handlePipelineEvent(data);
           
           if (data.event === "connected") {
             setConnectionState("Connected");
@@ -135,8 +141,7 @@ export default function Home() {
               setMessages(prev => [...prev, { id: Date.now(), role: "user", text: data.text }]);
             }
           } else if (data.event === "telemetry") {
-            setDetectedAccent(data.accent);
-            setDetectedConfidence(data.confidence);
+            // Handled by usePipelineState; no local state needed here anymore.
           } else if (data.event === "aria_speech") {
             setConversationState("Speaking");
             playBase64Wav(data.audio_base64, data.mime_type).then(audio => {
@@ -191,6 +196,7 @@ export default function Home() {
       audioContextRef.current.close();
     }
     
+    resetPipelineState();
     setConnectionState("Disconnected");
     setConversationState("Idle");
     setVolume(0);
@@ -225,9 +231,9 @@ export default function Home() {
   };
 
   const handleDetectionComplete = (report: ReportDetail) => {
-    setDetectedAccent(report.predicted_accent);
-    setDetectedConfidence(report.confidence);
-    setTime(report.file_duration || 0);
+    // NOTE: do NOT overwrite `time` (conversation duration) with the uploaded
+    // file's duration; the uploaded file duration lives inside the report itself
+    // and is displayed in ReportView.
     setPanelState({ view: "analysis", payload: report });
   };
 
@@ -243,30 +249,6 @@ export default function Home() {
     if (conversationState === "Listening") orbState = "listening";
     else if (conversationState === "Uploading..." || conversationState === "Thinking") orbState = "thinking";
     else if (conversationState === "Speaking") orbState = "speaking";
-  }
-
-  // Determine Telemetry Props
-  let displayAccent = "N/A";
-  let displayConfidence: number | null = null;
-  let isDetecting = false;
-
-  if (connectionState === "Disconnected") {
-    if (time === 0 && !detectedAccent) {
-      displayAccent = "N/A";
-    } else if (detectedAccent) {
-      displayAccent = detectedAccent;
-      displayConfidence = detectedConfidence;
-    } else {
-      displayAccent = "Insufficient conversation";
-    }
-  } else {
-    if (detectedAccent) {
-      displayAccent = detectedAccent;
-      displayConfidence = detectedConfidence;
-    } else {
-      displayAccent = "Detecting...";
-      isDetecting = true;
-    }
   }
 
   // Determine Button Text & Props
@@ -298,10 +280,6 @@ export default function Home() {
       selectedVoice={selectedVoice}
       setSelectedVoice={setSelectedVoice}
       onDetectionComplete={handleDetectionComplete}
-      displayAccent={displayAccent}
-      displayConfidence={displayConfidence}
-      time={time}
-      isDetecting={isDetecting}
     />
   );
 
@@ -391,6 +369,9 @@ export default function Home() {
       setPanelState={setPanelState}
       messages={messages}
       conversationState={conversationState}
+      pipeline={pipeline}
+      accumulator={accumulator}
+      accent={accent}
     />
   );
 

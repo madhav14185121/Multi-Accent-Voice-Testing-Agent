@@ -14,7 +14,7 @@ export const Navbar = React.memo(function Navbar({ onOpenHistory }: NavbarProps)
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, ease: "easeOut" }}
-      className="w-full flex justify-between items-center px-8 py-6 max-w-[1600px] mx-auto absolute top-0 z-50 left-0 right-0"
+      className="w-full flex justify-between items-center px-8 py-6 max-w-[1700px] mx-auto relative z-50"
     >
       <div className="flex items-center gap-4">
         <a href="/" className="text-4xl font-normal tracking-tight text-foreground hover:text-accent-purple transition-colors">
@@ -37,8 +37,6 @@ export const Navbar = React.memo(function Navbar({ onOpenHistory }: NavbarProps)
         >
           <Clock size={16} /> History
         </button>
-        <a href="#" className="hover:text-accent-purple transition-colors flex items-center gap-2"><BookOpen size={16} /> Documentation</a>
-        <a href="#" className="hover:text-accent-purple transition-colors flex items-center gap-2"><Info size={16} /> About</a>
       </div>
     </motion.nav>
   );

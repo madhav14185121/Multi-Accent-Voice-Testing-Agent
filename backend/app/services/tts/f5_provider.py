@@ -33,26 +33,6 @@ class F5TTSProvider(TTSProvider):
             device = self._detect_device()
             logger.info(f"Loading F5-TTS model on device: {device}...")
             
-            # On Windows, TorchCodec requires FFmpeg shared DLLs. 
-            # We attempt to find the winget installed shared ffmpeg and add it to DLL search path.
-            if os.name == "nt":
-                import glob
-                local_app_data = os.environ.get("LOCALAPPDATA", "")
-                if local_app_data:
-                    search_pattern = os.path.join(
-                        local_app_data, 
-                        "Microsoft", "WinGet", "Packages", 
-                        "Gyan.FFmpeg.Shared*", "*", "bin"
-                    )
-                    matches = glob.glob(search_pattern)
-                    for match in matches:
-                        if os.path.isdir(match):
-                            try:
-                                os.add_dll_directory(match)
-                                logger.info(f"Added FFmpeg DLL directory: {match}")
-                            except Exception as e:
-                                logger.warning(f"Failed to add DLL directory {match}: {e}")
-
             # Lazy import to avoid slowing down startup if not used
             from f5_tts.api import F5TTS
             self.tts = F5TTS(model="F5TTS_Base", device=device)

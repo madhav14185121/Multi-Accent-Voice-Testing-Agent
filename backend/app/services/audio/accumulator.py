@@ -56,6 +56,14 @@ class ConversationAccumulator:
         """True when enough speech has been accumulated for accent detection."""
         return self._ready
 
+    def get_accumulated_seconds(self) -> float:
+        """Return the total speech duration (in seconds) currently held by the accumulator."""
+        return float(self._accumulated_seconds)
+
+    def get_target_seconds(self) -> float:
+        """Return the accumulator's speech-duration target (seconds)."""
+        return float(self._target_seconds)
+
     def append(self, wav_path: str) -> bool:
         """Append a normalized WAV segment to the accumulator.
 

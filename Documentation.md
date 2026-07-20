@@ -193,3 +193,32 @@ Because we designed the architecture to be highly modular, swapping out the AI b
   - New Layout & Components: `frontend/src/components/HomeLayout.tsx`, `frontend/src/components/ControlSidebar.tsx`, `frontend/src/components/RightPanel.tsx`, `frontend/src/components/ConversationPanel.tsx`, `frontend/src/components/ReportView.tsx`, `frontend/src/components/HistoryDrawer.tsx`
   - Refactored Main Orchestrator: `frontend/src/app/page.tsx`
   - Types: `frontend/src/types.ts`
+
+---
+
+## Date: 2026-07-20
+
+### 17. Real-Time Turn Pipeline & Accent Detection UI Improvements
+- **Feature/Change:** Implemented a new, live-updating "Turn Pipeline" layout inside the Live Analysis panel to track individual stage progress (Speech-to-Text, LLM Generating, and Text-to-Speech). Dramatically enhanced the visualization of accent detection progress and results.
+- **How it was added:**
+  - **Frontend Pipeline Hook:** Added a reusable state machine hook `usePipelineState.ts` to manage transition states for STT, LLM, and TTS driven by WebSocket events. Integrated this hook into `page.tsx` and mapped events (`thinking`, `transcript`, `assistant_message`, `speaking`, `aria_speech`, `idle`).
+  - **Pipeline Components:** Created `PipelineStage.tsx` to render individual pipeline items with clean status animations (pending, running, complete) and latency values. Replaced the static layout with these stages inside the newly created `LiveAnalysisPanel.tsx`.
+  - **Accent Accumulator UI Fixes:** Modified the "Accumulating Speech" bar to grow smoothly (1s linear interpolation) and prevented the progress bar from clearing/going blank once accent detection completes.
+  - **Accent Detection Redesign:** Styled the detected accent block using a customized container with a subtle background tint (`bg-accent-purple/5`), matching borders, a prominent circular check icon, and a modern white pill showing the confidence score.
+- **File Location:**
+  - Pipeline Components: `frontend/src/components/PipelineStage.tsx`, `frontend/src/components/LiveAnalysisPanel.tsx`
+  - React Hook: `frontend/src/hooks/usePipelineState.ts`
+  - Core layouts: `frontend/src/components/RightPanel.tsx`, `frontend/src/components/HomeLayout.tsx`, `frontend/src/app/page.tsx`, `frontend/src/types.ts`
+
+### 18. TTS Latency, Connection Closed Handling & Animation Polishing
+- **Feature/Change:** Improved TTS latency tracking accuracy, prevented wasted CPU/GPU cycles on disconnected clients, and resolved UI quirks like infinite typing animation loops and layout warping.
+- **How it was added:**
+  - **TTS Generation State:** Fixed a bug where the TTS pipeline stage remained "pending" during synthesis by updating `usePipelineState` to mark TTS as running immediately when the LLM finishes (`assistant_message`).
+  - **TTS Latency Tracking:** Configured the TTS stage to only mark itself complete on the backend's `idle` event (which triggers once frontend playback completes) instead of when `aria_speech` is received. This accurately measures and shows total generation + speaking duration.
+  - **Websocket Disconnect Safeguards:** Modified `backend/app/api/websocket.py` to evaluate client states before invoking heavy LLM and F5-TTS generation. Also added a `try/except` guard against `RuntimeError` when trying to send frames to disconnected sockets.
+  - **Transition Animation Polish:** Reverted flex-panel layout scaling animation from standard CSS transitions back to Framer Motion's physics-based `layout` to preserve buttery smoothness. Applied `layout="position"` to child containers to cancel scale-distortion on chat bubbles and text contents.
+  - **Typewriter Re-animation Bug:** Modified `TypewriterText` in `ConversationPanel.tsx` to mark messages as `_animated = true` once completed, stopping them from playing the typing animation repeatedly when toggling between tabs.
+- **File Location:**
+  - Backend: `backend/app/api/websocket.py`
+  - Frontend: `frontend/src/components/ConversationPanel.tsx`, `frontend/src/components/RightPanel.tsx`, `frontend/src/hooks/usePipelineState.ts`
+
