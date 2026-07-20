@@ -42,13 +42,13 @@ export const ReportView = React.memo(function ReportView({ report }: ReportViewP
     sortedScores.length > 0 ? Math.max(...sortedScores.map(([, v]) => v)) : 100;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 p-2">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-xl shadow-accent-purple/5 rounded-[24px] p-6"
+        className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-xl shadow-accent-purple/5 rounded-[24px] p-8"
       >
         <div className="flex items-start gap-4">
           <div className="flex-shrink-0 w-12 h-12 rounded-full bg-accent-purple/10 flex items-center justify-center">
@@ -66,7 +66,7 @@ export const ReportView = React.memo(function ReportView({ report }: ReportViewP
 
         {/* Audio Player */}
         {report.file_url && (
-          <div className="mt-5">
+          <div className="mt-8">
             <audio
               controls
               src={report.file_url}
@@ -77,12 +77,12 @@ export const ReportView = React.memo(function ReportView({ report }: ReportViewP
       </motion.div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
-          className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-xl shadow-accent-purple/5 rounded-[20px] p-5"
+          className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-xl shadow-accent-purple/5 rounded-[20px] p-6"
         >
           <span className="block text-xs font-bold uppercase tracking-widest text-foreground/40 mb-2">
             Accent
@@ -96,7 +96,7 @@ export const ReportView = React.memo(function ReportView({ report }: ReportViewP
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.15 }}
-          className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-xl shadow-accent-purple/5 rounded-[20px] p-5"
+          className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-xl shadow-accent-purple/5 rounded-[20px] p-6"
         >
           <span className="block text-xs font-bold uppercase tracking-widest text-foreground/40 mb-2">
             Confidence
@@ -110,7 +110,7 @@ export const ReportView = React.memo(function ReportView({ report }: ReportViewP
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.2 }}
-          className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-xl shadow-accent-purple/5 rounded-[20px] p-5"
+          className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-xl shadow-accent-purple/5 rounded-[20px] p-6"
         >
           <span className="block text-xs font-bold uppercase tracking-widest text-foreground/40 mb-2 flex items-center gap-1">
             <Clock className="w-3 h-3" /> Duration
@@ -127,12 +127,12 @@ export const ReportView = React.memo(function ReportView({ report }: ReportViewP
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.25 }}
-          className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-xl shadow-accent-purple/5 rounded-[24px] p-6"
+          className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-xl shadow-accent-purple/5 rounded-[24px] p-8"
         >
           <h3 className="text-xs font-bold uppercase tracking-widest text-foreground/40 mb-5 flex items-center gap-2">
             <BarChart3 className="w-4 h-4" /> All Accent Scores
           </h3>
-          <div className="space-y-3">
+          <div className="space-y-5">
             {sortedScores.map(([label, score], i) => (
               <motion.div
                 key={label}
@@ -182,7 +182,7 @@ export const ReportView = React.memo(function ReportView({ report }: ReportViewP
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.35 }}
-          className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-xl shadow-accent-purple/5 rounded-[24px] p-6"
+          className="bg-white/40 backdrop-blur-xl border border-white/60 shadow-xl shadow-accent-purple/5 rounded-[24px] p-8"
         >
           <h3 className="text-xs font-bold uppercase tracking-widest text-foreground/40 mb-4 flex items-center gap-2">
             <Cpu className="w-4 h-4" /> Telemetry
