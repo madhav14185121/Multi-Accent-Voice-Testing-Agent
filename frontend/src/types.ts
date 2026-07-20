@@ -29,3 +29,34 @@ export interface AriaSpeechEvent {
   duration_ms: number;
   voice_used: string;
 }
+
+// ── Pipeline / Live Analysis types ─────────────────────────────
+
+export type StageStatus = "pending" | "running" | "done";
+
+export interface Stage {
+  status: StageStatus;
+  latencyMs?: number;
+  startedAt?: number; // performance.now() timestamp
+}
+
+export interface PipelineState {
+  stt: Stage;
+  llm: Stage;
+  tts: Stage;
+}
+
+export interface AccumulatorState {
+  accumulatedSeconds: number;
+  targetSeconds: number;
+  isReady: boolean; // backend flipped true, detection is running
+}
+
+export type AccentDetectionStatus = "idle" | "detecting" | "detected";
+
+export interface AccentDetectionState {
+  status: AccentDetectionStatus;
+  label?: string;
+  confidence?: number;
+  top3?: { label: string; confidence: number }[];
+}
