@@ -1,6 +1,26 @@
+import os
+import glob
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
+
+# On Windows, TorchCodec and torchaudio require FFmpeg shared DLLs.
+# We MUST inject the path before any audio libraries are imported by the API routers.
+if os.name == "nt":
+    local_app_data = os.environ.get("LOCALAPPDATA", "")
+    if local_app_data:
+        search_pattern = os.path.join(
+            local_app_data, 
+            "Microsoft", "WinGet", "Packages", 
+            "Gyan.FFmpeg.Shared*", "*", "bin"
+        )
+        for match in glob.glob(search_pattern):
+            if os.path.isdir(match):
+                try:
+                    os.add_dll_directory(match)
+                    print(f"Bootstrapped FFmpeg DLL directory: {match}")
+                except Exception as e:
+                    print(f"Failed to add DLL directory {match}: {e}")
 
 from app.api import websocket, upload, feedback, history, tts
 from app.config import settings
