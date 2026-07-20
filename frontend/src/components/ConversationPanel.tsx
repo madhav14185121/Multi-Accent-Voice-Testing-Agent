@@ -10,30 +10,33 @@ interface ConversationPanelProps {
   conversationState: "Idle" | "Listening" | "Uploading..." | "Thinking" | "Speaking";
 }
 
-const TypewriterText = ({ text, onType, animate }: { text: string; onType?: () => void; animate: boolean }) => {
-  const [displayedText, setDisplayedText] = React.useState(animate ? "" : text);
-  const [finished, setFinished] = React.useState(!animate);
+const TypewriterText = ({ msg, onType, animate }: { msg: Message & { _animated?: boolean }; onType?: () => void; animate: boolean }) => {
+  const shouldAnimate = animate && !msg._animated;
+  const [displayedText, setDisplayedText] = React.useState(shouldAnimate ? "" : msg.text);
+  const [finished, setFinished] = React.useState(!shouldAnimate);
 
   React.useEffect(() => {
-    if (finished || !animate) {
-      setDisplayedText(text);
+    if (finished || !shouldAnimate) {
+      setDisplayedText(msg.text);
+      msg._animated = true;
       return;
     }
     
     let i = 0;
     const interval = setInterval(() => {
-      setDisplayedText(text.slice(0, i + 1));
+      setDisplayedText(msg.text.slice(0, i + 1));
       i++;
       if (onType) onType();
-      if (i >= text.length) {
+      if (i >= msg.text.length) {
         clearInterval(interval);
         setFinished(true);
+        msg._animated = true;
       }
     }, 15);
     return () => clearInterval(interval);
-  }, [text, onType, finished, animate]);
+  }, [msg, onType, finished, shouldAnimate]);
 
-  return <>{finished || !animate ? text : displayedText}</>;
+  return <>{finished || !shouldAnimate ? msg.text : displayedText}</>;
 };
 
 export const ConversationPanel = React.memo(function ConversationPanel({
@@ -104,7 +107,7 @@ export const ConversationPanel = React.memo(function ConversationPanel({
                       : "bg-white/60 text-foreground rounded-bl-sm border border-white/40 shadow-sm"
                     }`}
                 >
-                  {msg.role === "assistant" ? <TypewriterText text={msg.text} onType={scrollToBottom} animate={index === messages.length - 1} /> : msg.text}
+                  {msg.role === "assistant" ? <TypewriterText msg={msg} onType={scrollToBottom} animate={index === messages.length - 1} /> : msg.text}
                 </div>
               </div>
             </motion.div>

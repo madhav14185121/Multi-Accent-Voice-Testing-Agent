@@ -129,14 +129,36 @@ async def websocket_audio(websocket: WebSocket) -> None:
                     # 3. Accumulate speech for future processing
                     if transcript:
                         became_ready = accumulator.append(context.wav_path)
+
+                        # ── Emit accumulator progress BEFORE any reset so the frontend
+                        #    sees the "full" state (X / 20s) and can flip to "Detecting accent..."
+                        try:
+                            await websocket.send_json({
+                                "event": "accumulator_progress",
+                                "accumulated_seconds": round(accumulator.get_accumulated_seconds(), 2),
+                                "target_seconds": round(accumulator.get_target_seconds(), 2),
+                                "is_ready": bool(became_ready),
+                            })
+                        except Exception as e:
+                            logger.warning(f"Failed to emit accumulator_progress: {e}")
+
                         if became_ready:
                             logger.info("Accumulator reached target duration. Launching background accent detection.")
-                            # Launch detection without blocking
                             audio_bytes_accum = accumulator.get_combined_wav_bytes()
                             if audio_bytes_accum:
                                 asyncio.create_task(run_accent_detection(audio_bytes_accum, websocket, session_id))
                                 # Reset accumulator to collect next batch
                                 accumulator.reset()
+                                # Emit a follow-up progress event so the frontend clears the bar
+                                try:
+                                    await websocket.send_json({
+                                        "event": "accumulator_progress",
+                                        "accumulated_seconds": 0.0,
+                                        "target_seconds": round(accumulator.get_target_seconds(), 2),
+                                        "is_ready": False,
+                                    })
+                                except Exception as e:
+                                    logger.warning(f"Failed to emit post-reset accumulator_progress: {e}")
 
                         timestamp = context.received_at
 
@@ -162,6 +184,10 @@ async def websocket_audio(websocket: WebSocket) -> None:
                         # Add user message to LLM history
                         session_manager.add_message(session_id, "user", transcript)
                         
+                        if websocket.client_state.name == "DISCONNECTED":
+                            logger.info("Client disconnected before LLM. Aborting pipeline.")
+                            continue
+                            
                         # Call LLM client (streams=False for now) using thread pool
                         t_llm_start = time.time()
                         reply = await asyncio.to_thread(
@@ -185,6 +211,10 @@ async def websocket_audio(websocket: WebSocket) -> None:
                         })
                         
                         # TTS Synthesis
+                        if websocket.client_state.name == "DISCONNECTED":
+                            logger.info("Client disconnected before TTS. Aborting synthesis.")
+                            continue
+
                         try:
                             # Use stored voice and accent
                             session = session_manager.get_session(session_id)
