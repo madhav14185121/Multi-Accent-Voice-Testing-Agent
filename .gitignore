@@ -4,3 +4,12 @@ __pycache__/
 *.wav
 *.m4a
 .DS_Store
+node_modules/
+
+# Generated Documentation & Scripts
+convert.py
+Final_Documentation.html
+Final_Documentation.md
+Final_Documentation.pdf
+make_pdf.py
+print_pdf.py
